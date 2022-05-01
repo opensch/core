@@ -1,53 +1,52 @@
-# Сервер для openSchool (stage 1)
-## Early stage
+# This is openSchool core
 
-Добро пожаловать в репозиторий для серверной программы openSchool! Здесь вы найдете все, что нужно для запуска, контролирования, работы и починки серверной части.
+Welcome to the repository of openSchool Core - the reference implementation of the openSchool server designed for running on local servers. Here you will find everything you'll need for running openSchool on your server setups. 
 
-# Что такое openSchool?
-openSchoool - набор свободных и открытых инструментов для упрощения, автоматизации и объединения различных частей управления школы. Наша цель - создать главный центр для хранения данных сотрудников/учеников, хранилище расписания и оценок, систему общения с учащимися и так далее.
+**Serious warning:** openSchool is a very new project. And it is **extremely** buggy and in no way can be called production-ready. So keep that in mind when you decide to run this software in a production environment.
 
-# Установка
-* tl;dr для Arch Linux: 
-```
-sudo pacman -S nginx python-pymongo python-requests python-flask; git clone https://github.com/opensch/backend.git
-```
+# Wait, what is openSchool?
+openSchool is a set of free and open tools for managing, automating and combining various routines of school and university management. Our goal is to create a central hub for storing student/employee data, managing timetables and marks and so forth.
 
-Для того, чтобы поставить серверную часть openSchool, убедитесь, что у вас есть:
-* Python 3 (желательно >= 3.6 на всякий случай)
+# Installation
+To run openSchool Core, you will need:
+* Python 3 (just in case make sure to have version 3.6 and higher)
 * Pymongo
 * Flask
-* (deployment) Nginx
-* (deployment) Linux. 
+* A HTTP web server
 
-Больше всего было тестировано на Arch Linux на обычном ядре. 
-Однако, сервер может запускаться и на Windows/macOS системах (с помощью встроенного в flask веб-сервера, что достаточно для локальной разработки, но противопоказано в рабочей среде)
+The recommended setup that was thoroughly tested by the staff is:
+* Arch Linux with the default Linux Kernel
+* Nginx as the web server
 
-Этапы:
-1) Перейдите в нужную вам папку и склонируете репозиторий zip файлом или:
+Note that openSchool Core can be run under Windows or macOS, but only in development mode with the built-in Flask web server. Otherwise these operating systems are **unadvised** and **not supported officially**.
+
+# Installation steps:
+1) Clone the repository from GitHub via Zip download or by typing:
 ```
 git clone https://github.com/opensch/backend.git
 ```
 
-2) Для установки необходимых зависимостей используете:
+2) Install the required dependencies by running:
 ```
 pip install -r requirements.txt
 ```
 
-3) Переименуйте ```config.py.sample``` в ```config.py``` и отредактируйте этот файл.
+3) Rename ```config.py.sample``` to ```config.py```. Open the file and fill the blank variables with needed values.
 
-3) Настройте Nginx для работы с серверной частью и запустите его, или, если вы занимаетесь локальной разработкой. то напишите:
+4) In the configuration file set the variable ```self.mode``` to ```production``` if you are running on a real server. Don't forget to fill ```self.clientID``` and ```self.clientSecret```. If you are doing development work, set the mode to ```development```. In that case you can ignore the above mentioned variables.
+
+5) Configure your webserver to execute the FastCGI application. If you are using Nginx, as adviced, you can use the default configuration, which is stored in the repository. For development purposes, you can just run:
 ```
 sudo python main.py
 ```
 
+# Documentation
+We are working on creating and translating the documentation for the openSchool Core. It is not done yet, so please wait.
 
-# Документация
-Скоро
+# Can I take openSchool for a spin without configuring the server?
+Currently, no. As the project is very new, no school is running any instances of openSchool. So for the time being you need to setup your own server to test out openSchool.
 
-# А можно как-то протестировать, не скачивая и не настраивая серверную часть?
-К сожалению, пока мы не можем придоставить такой возможности, так как приложение еще не вышло. Поэтому пока придется настраивать самостоятельно.
-
-# [Лицензия](https://github.com/opensch/backend/blob/main/LICENSE)
+# [License](https://github.com/opensch/backend/blob/main/LICENSE)
 
 
 
