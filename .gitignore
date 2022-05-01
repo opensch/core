@@ -1,0 +1,7 @@
+# The annoying pycache folder
+__pycache__/
+classes/__pycache__/
+classes/timetable/__pycache__/
+classes/surveys/__pycache__/
+
+config.py

@@ -1,0 +1,14 @@
+[
+    {
+        "title": "Demo news (not important)",
+        "picture": "none",
+        "content": "newsContent/demo.json",
+        "important": false
+    },
+    {
+	"title": "Demo news (very important)",
+	"picture": "none",
+	"content": "newsContent/demo.json",
+	"important": true
+    }
+]

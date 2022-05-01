@@ -1,0 +1,37 @@
+# CONFIG FILE
+
+class Config():
+	def __init__(self):
+
+		'''mongoDB'''
+		self.MONGO_HOST = ""
+		self.MONGO_PORT = 27017
+		self.MONGO_USER = ""
+		self.MONGO_PASS = ""
+		self.MONGO_DB = "openSchool"
+		'''mongoDB'''
+
+		'''Server section'''
+
+		# development: ignore all security functions, use built-in http server in flask. production: all security, use external http server
+		self.mode = "development"
+
+		self.clientID = "testkey"
+		self.clientSecret = "verysecurekey" # USE MORE SECURE KEY IN PRODUCTION!. In beta testing use more secure key, but it's not important.
+
+		#development settings
+		self.port = 80
+		self.ssl_context = ()
+
+		#Push notifications
+		self.googleFCM = ""
+
+		'''End of Server Section'''
+
+		'''School setup'''
+
+		# This is an important parameter. It controls the maximum lesson count
+		# Change this parameter wisely as it can lead to crashes later.
+		self.MAX_LESSON_COUNT = 0
+
+		'''End of School setup'''
