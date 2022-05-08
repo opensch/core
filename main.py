@@ -1119,6 +1119,140 @@ def deleteReplacement ():
 	return response
 
 
+@app.route("privAPI/createNews", methods = ["POST", "OPTIONS"])
+def createNews ():
+	if request.method == 'OPTIONS':
+		r = Response("")
+		r.headers['Access-Control-Allow-Origin'] = "*"
+		r.headers['Access-Control-Allow-Headers'] = '*'
+		r.headers['Access-Control-Allow-Methods'] = '*'
+		return r
+	
+	if 'Authorization' not in request.headers:
+		return e403()
+	
+	token = request.headers['Authorization']
+	profile = findProfileByToken(token)
+	if profile == None:
+		return e403()
+	
+	if 'role' not in profile.flags or profile.flags['role'] == 0:
+		r = Response("We're ready to pay you 1 dollar because you found this method. Next stage is to crack this. Good Luck!", status = 403)
+		r.headers['access-control-allow-origin'] = '*'
+		r.headers['Access-Control-Allow-Headers'] = '*'
+		r.headers['Access-Control-Allow-Methods'] = '*'
+	
+		return r
+
+	request_data = request.get_json()
+
+	title = request_data ["title"]
+	markdown_text = reqeuest_data ["data"]
+	is_important = request_data ["important"]
+
+	news = classes.News.create(title, markdown_text, is_important)
+
+	if news != None:
+		json_news = json.dumps(news.toJSON())
+		response = Response(json_news, 200)
+	else:
+		response = Response("", 400)
+
+	response.headers['Access-Control-Allow-Origin'] = "*"
+	response.headers['Access-Control-Allow-Headers'] = '*'
+	response.headers['Access-Control-Allow-Methods'] = '*'
+
+	return response
+
+
+@app.route("privAPI/editNews", methods = ["POST", "OPTIONS"])
+def editNews():
+	gif request.method == 'OPTIONS':
+		r = Response("")
+		r.headers['Access-Control-Allow-Origin'] = "*"
+		r.headers['Access-Control-Allow-Headers'] = '*'
+		r.headers['Access-Control-Allow-Methods'] = '*'
+		return r
+	
+	if 'Authorization' not in request.headers:
+		return e403()
+	
+	token = request.headers['Authorization']
+	profile = findProfileByToken(token)
+	if profile == None:
+		return e403()
+	
+	if 'role' not in profile.flags or profile.flags['role'] == 0:
+		r = Response("We're ready to pay you 1 dollar because you found this method. Next stage is to crack this. Good Luck!", status = 403)
+		r.headers['access-control-allow-origin'] = '*'
+		r.headers['Access-Control-Allow-Headers'] = '*'
+		r.headers['Access-Control-Allow-Methods'] = '*'
+	
+		return r
+
+	request_data = request.get_json()
+	
+	title = reqeust_data ["title"]
+	new_data = request_data ["data"]
+    
+	news = classes.News.search(title)
+
+	if news == None:
+		response = Response("", 404)
+	else:
+		news.edit(new_data)
+		response = Response("", 200)
+
+	response.headers['access-control-allow-origin'] = '*'
+	response.headers['Access-Control-Allow-Headers'] = '*'
+	response.headers['Access-Control-Allow-Methods'] = '*'
+
+	return response
+
+
+@app.route("privAPI/deleteNews", methods = ["POST", "OPTIONS"])
+def deleteNews():
+	gif request.method == 'OPTIONS':
+		r = Response("")
+		r.headers['Access-Control-Allow-Origin'] = "*"
+		r.headers['Access-Control-Allow-Headers'] = '*'
+		r.headers['Access-Control-Allow-Methods'] = '*'
+		return r
+	
+	if 'Authorization' not in request.headers:
+		return e403()
+	
+	token = request.headers['Authorization']
+	profile = findProfileByToken(token)
+	if profile == None:
+		return e403()
+	
+	if 'role' not in profile.flags or profile.flags['role'] == 0:
+		r = Response("We're ready to pay you 1 dollar because you found this method. Next stage is to crack this. Good Luck!", status = 403)
+		r.headers['access-control-allow-origin'] = '*'
+		r.headers['Access-Control-Allow-Headers'] = '*'
+		r.headers['Access-Control-Allow-Methods'] = '*'
+	
+		return r
+
+	request_data = request.get_json()
+	
+	title = reqeust_data ["title"]
+	news = classes.News.search(title)
+
+	if news == None:
+		response = Response("", 404)
+	else:
+		news.delete()
+		response = Response("", 410)
+
+	response.headers['access-control-allow-origin'] = '*'
+	response.headers['Access-Control-Allow-Headers'] = '*'
+	response.headers['Access-Control-Allow-Methods'] = '*'
+
+	return response
+
+
 @app.route("/")
 def main():
 	r = Response("Not Found", status = 404)
