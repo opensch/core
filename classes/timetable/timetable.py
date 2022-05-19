@@ -189,6 +189,7 @@ class Timetable(object):
 			n = i
 			
 			if i == "-":
+				finalList.append("-")
 				continue
 			if "A" not in n and "," not in n and "I" not in n:
 				lesson = Lesson.findById(int(n))
