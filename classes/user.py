@@ -111,6 +111,15 @@ class User(object):
 		client = createMongo()
 		db = client.users
 
+		if _filter == "all":
+			c = db.find({})
+
+			temp = []
+			for i in c:
+				temp.append( User.fromJSON(i) )
+				
+			return temp
+
 		if _filter == "login":
 			m = db.count_documents( {"login": query} )
 			c = db.find( {"login": query} )
