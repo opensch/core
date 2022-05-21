@@ -1167,7 +1167,7 @@ def createNews ():
 
 @app.route("privAPI/editNews", methods = ["POST", "OPTIONS"])
 def editNews():
-	gif request.method == 'OPTIONS':
+	if request.method == 'OPTIONS':
 		r = Response("")
 		r.headers['Access-Control-Allow-Origin'] = "*"
 		r.headers['Access-Control-Allow-Headers'] = '*'
