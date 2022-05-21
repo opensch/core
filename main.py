@@ -1212,7 +1212,7 @@ def editNews():
 
 @app.route("privAPI/deleteNews", methods = ["POST", "OPTIONS"])
 def deleteNews():
-	gif request.method == 'OPTIONS':
+	if request.method == 'OPTIONS':
 		r = Response("")
 		r.headers['Access-Control-Allow-Origin'] = "*"
 		r.headers['Access-Control-Allow-Headers'] = '*'
