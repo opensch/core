@@ -4,4 +4,9 @@ classes/__pycache__/
 classes/timetable/__pycache__/
 classes/surveys/__pycache__/
 
+# Codes and tokens
+codes/
+tokens/
+
+# The configuration file with it's contents
 config.py
