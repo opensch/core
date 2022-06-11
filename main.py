@@ -1,5 +1,9 @@
+import os
+if os.getenv("KUBERNETES") == "1":
+	import kubernetesConfig
+
 from flask import Flask, request, Response, make_response, send_file
-import classes, hashlib, os, binascii, time, json
+import classes, hashlib, binascii, time, json
 import datetime, base64
 
 from config import Config
