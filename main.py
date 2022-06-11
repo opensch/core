@@ -1119,8 +1119,8 @@ def deleteReplacement ():
 	return response
 
 
-@app.route("privAPI/createNews", methods = ["POST", "OPTIONS"])
-def createNews ():
+@app.route("/privAPI/createNews", methods = ["POST", "OPTIONS"])
+def createNews():
 	if request.method == 'OPTIONS':
 		r = Response("")
 		r.headers['Access-Control-Allow-Origin'] = "*"
@@ -1165,7 +1165,7 @@ def createNews ():
 	return response
 
 
-@app.route("privAPI/editNews", methods = ["POST", "OPTIONS"])
+@app.route("/privAPI/editNews", methods = ["POST", "OPTIONS"])
 def editNews():
 	if request.method == 'OPTIONS':
 		r = Response("")
@@ -1210,7 +1210,7 @@ def editNews():
 	return response
 
 
-@app.route("privAPI/deleteNews", methods = ["POST", "OPTIONS"])
+@app.route("/privAPI/deleteNews", methods = ["POST", "OPTIONS"])
 def deleteNews():
 	if request.method == 'OPTIONS':
 		r = Response("")
