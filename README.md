@@ -8,6 +8,13 @@ Welcome to the repository of openSchool Core - the reference implementation of t
 openSchool is a set of free and open tools for managing, automating and combining various routines of school and university management. Our goal is to create a central hub for storing student/employee data, managing timetables and marks and so forth.
 
 # Installation
+
+## Docker
+  1. `docker pull opensch/core`
+  2. Download [config.py](https://raw.githubusercontent.com/opensch/core/master/config.py.sample) from this repository and setup it.
+  3. `docker run -v <PATH TO YOUR CONFIG FILE>:/app/config.py -p 80:80 opensch/core`
+
+## Manually
 To run openSchool Core, you will need:
 * Python 3 (just in case make sure to have version 3.6 and higher)
 * Pymongo
@@ -47,8 +54,3 @@ We are working on creating and translating the documentation for the openSchool 
 Currently, no. As the project is very new, no school is running any instances of openSchool. So for the time being you need to setup your own server to test out openSchool.
 
 # [License](https://github.com/opensch/backend/blob/main/LICENSE)
-
-
-
-
-
