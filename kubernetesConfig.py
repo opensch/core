@@ -5,8 +5,11 @@ import subprocess
 # Automatically create config.py from env
 
 def replaceSettings(config, name, data):
-	config = config.replace("self."+name+' = ""', "self."+name+' = "'+data+'"')
-	return config
+	config = config.split("\n")
+	for i in range(len(config)):
+		if "self."+name in config[i]:
+			config[i] = '\t\tself.'+name+' = "'+data+'"'
+	return "\n".join(config)
 
 with open("config.py.sample") as f:
 	config = f.read()
