@@ -1,5 +1,6 @@
 import os
 import base64
+import subprocess
 
 # Automatically create config.py from env
 
@@ -30,3 +31,4 @@ if 'SSL' in os.environ and os.environ['SSL'] == "1":
 
 	os.remove("/etc/nginx/nginx.conf")
 	os.rename("/etc/nginx/nginx.conf.ssl", "/etc/nginx/nginx.conf")
+	subprocess.call(["nginx", "-s", "reload"])
