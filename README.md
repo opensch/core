@@ -14,6 +14,11 @@ openSchool is a set of free and open tools for managing, automating and combinin
   2. Download [config.py](https://raw.githubusercontent.com/opensch/core/master/config.py.sample) from this repository and setup it.
   3. `docker run -v <PATH TO YOUR CONFIG FILE>:/app/config.py -p 80:80 opensch/core`
 
+## Kubernetes
+  1. Download [apply_openSchool.yaml](https://raw.githubusercontent.com/opensch/core/master/apply_openSchool.yaml)
+  2. Configure amount of replicas and environment parameters.
+  3. `kubectl apply -f apply_openSchool.yaml`
+
 ## Manually
 To run openSchool Core, you will need:
 * Python 3 (just in case make sure to have version 3.6 and higher)
@@ -27,7 +32,7 @@ The recommended setup that was thoroughly tested by the staff is:
 
 Note that openSchool Core can be run under Windows or macOS, but only in development mode with the built-in Flask web server. Otherwise these operating systems are **unadvised** and **not supported officially**.
 
-# Installation steps:
+### Installation steps:
 1) Clone the repository from GitHub via Zip download or by typing:
 ```
 git clone https://github.com/opensch/backend.git
