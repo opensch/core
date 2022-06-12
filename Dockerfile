@@ -4,7 +4,6 @@ LABEL maintainer="openSchool"
 COPY . /app
 RUN rm -rf /app/docker
 RUN rm /app/Dockerfile
-RUN rm /app/config.py.sample
 
 RUN apt-get update 
 RUN apt-get install -y nginx
