@@ -10,6 +10,7 @@ RUN apt-get update
 RUN apt-get install -y nginx
 
 COPY docker/nginx.conf /etc/nginx/nginx.conf
+COPY docker/nginx.conf.ssl /etc/nginx/nginx.conf.ssl
 COPY docker/runner.sh /app/runner.sh
 RUN chmod +x /app/runner.sh
 
