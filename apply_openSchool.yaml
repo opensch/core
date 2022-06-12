@@ -1,0 +1,54 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: openschooldeploy
+  labels:
+    app: openschool
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: openschool
+  template:
+    metadata:
+      labels:
+        name: openschool
+    spec:
+      containers:
+        - name: os-api
+          image: opensch/core
+          imagePullPolicy: Always
+          ports:
+            - name: https
+              containerPort: 443
+              protocol: TCP
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          env:
+            - name: KUBERNETES
+              value: '1'
+            - name: mode
+              value: development
+            - name: clientID
+              value: testkey
+            - name: clientSecret
+              value: verysecurekey
+            - name: MAX_LESSON_COUNT
+              value: This is an important parameter. It controls the maximum lesson count. Change this parameter wisely as it can lead to crashes later.
+            - name: SSL
+              value: '1'
+            - name: SSL_CERT
+              value: SSL certificate (encoded in base64)
+            - name: SSL_KEY
+              value: Key for ssl certificate (encoded in base64)
+            - name: MONGO_HOST
+              value: mongoDB address
+            - name: MONGO_PORT
+              value: 27017
+            - name: MONGO_USER
+              value: mongoDB username
+            - name: MONGO_PASS
+              value: mongoDB user's password
+            - name: MONGO_DB
+              value: openSchool
