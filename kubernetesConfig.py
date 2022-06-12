@@ -5,7 +5,7 @@ import subprocess
 # Automatically create config.py from env
 
 def replaceSettings(config, name, data):
-	config = config.replace("self."+name+' = ""', name+' = "'+data+'"')
+	config = config.replace("self."+name+' = ""', "self."+name+' = "'+data+'"')
 	return config
 
 with open("config.py.sample") as f:
