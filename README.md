@@ -1,61 +1,70 @@
-# This is openSchool core
+openSchool Core is the reference implementation of the openSchool server, written in Python. It's meant for running on school server infrastructure to provide openSchool functionality to the students / workers of the faculty. It is designed for running from something small like a Raspberry Pi to more complex structures, security and privacy.
 
-Welcome to the repository of openSchool Core - the reference implementation of the openSchool server designed for running on local servers. Here you will find everything you'll need for running openSchool on your server setups. 
-
-**Serious warning:** openSchool is a very new project. And it is **extremely** buggy and in no way can be called production-ready. So keep that in mind when you decide to run this software in a production environment.
-
-# Wait, what is openSchool?
-openSchool is a set of free and open tools for managing, automating and combining various routines of school and university management. Our goal is to create a central hub for storing student/employee data, managing timetables and marks and so forth.
+:warning: **A word of causion!** This software is in its early stages of development and in no way considered production-ready. Expect a lot of bugs and quite poor design decisions in place that will (hopefully) get cleared up over time. There will be pull requests that **wlll** break current functionality.
 
 # Installation
+There are several ways to get your hands on Core:
 
-## Docker
-  1. `docker pull opensch/core`
-  2. Download [config.py](https://raw.githubusercontent.com/opensch/core/master/config.py.sample) from this repository and setup it.
-  3. `docker run -v <PATH TO YOUR CONFIG FILE>:/app/config.py -p 80:80 opensch/core`
+## Docker Container
+We provide a pre-configured Linux environment in the form of a Docker Image. That way you can run isolated instances of openSchool Core on your server.
+
+To setup:
+  1. Clone the Docker image by typing in the prompt: `docker pull opensch/core`
+  
+  2. Download the configuration script: [config.py](https://raw.githubusercontent.com/opensch/core/master/config.py.sample), and set it up.
+  
+  3. To run a container, run: `docker run -v <PATH TO YOUR CONFIG FILE>:/app/config.py -p 80:80 opensch/core`
 
 ## Kubernetes
-  1. Download [apply_openSchool.yaml](https://raw.githubusercontent.com/opensch/core/master/apply_openSchool.yaml)
-  2. Configure amount of replicas and environment parameters.
-  3. `kubectl apply -f apply_openSchool.yaml`
+In case you need to run Core on a big scale, we have setup a Kubernetes configuration file for fast deployments
+
+To setup:
+  1. Download the Kubernetes .yaml file: [apply_openSchool.yaml](https://raw.githubusercontent.com/opensch/core/master/apply_openSchool.yaml)
+  
+  2. Configure the amount of replicas and the environment parameters.
+  
+  3. To start the cluster, run: `kubectl apply -f apply_openSchool.yaml`
 
 ## Manually
-To run openSchool Core, you will need:
-* Python 3 (just in case make sure to have version 3.6 and higher)
-* Pymongo
-* Flask
-* A HTTP web server
+To run openSchool Core you will need:
+  * A Linux based environment
+  * python 3 (3.6 and higher is recommended)
+  * pymongo
+  * flask
+  * An HTTP server (if running in production)
 
-The recommended setup that was thoroughly tested by the staff is:
-* Arch Linux with the default Linux Kernel
-* Nginx as the web server
+We recommend this configuration, as it has been thorougly tested:
+  * Arch Linux with the default Linux Kernel Package
+  * Nginx
+  * MongoDB running on a separate server
 
-Note that openSchool Core can be run under Windows or macOS, but only in development mode with the built-in Flask web server. Otherwise these operating systems are **unadvised** and **not supported officially**.
+Note that Core can be run on other operating systems **in development mode**. However, they are **not** oficially supported for running in production.
 
-### Installation steps:
-1) Clone the repository from GitHub via Zip download or by typing:
+To setup:
+  1. Clone the Core repository. Download the ZIP or type in the terminal:
 ```
-git clone https://github.com/opensch/backend.git
+git clone https://github.com/opensch/core.git
 ```
-
-2) Install the required dependencies by running:
+  
+  2. Install the dependencies by running:
 ```
 pip install -r requirements.txt
 ```
+  
+  3. Rename `config.py.example` to `config.py`, open and fill up the blank variables.
+  
+  4. In the configuration script (`config.py`) set the `self.mode` variable to "production" if running on the server or "development" if running locally. The development option also disable security measures and checks.
+  
+  5. Configure your web server to run the FastCGI application, if you are in the production environment. Otherwise, you can use the Flask built-in web server.
+  In that case, run:
+  ```
+  sudo python main.py
+  ```
 
-3) Rename ```config.py.sample``` to ```config.py```. Open the file and fill the blank variables with needed values.
+# Contributions
+Any contributions to the source code, documentation edits and feature proposals are welcome. If you also want to support the projects, you can also send a donation. The ways of reaching out to us are in the README of the GitHub organization.
 
-4) In the configuration file set the variable ```self.mode``` to ```production``` if you are running on a real server. Don't forget to fill ```self.clientID``` and ```self.clientSecret```. If you are doing development work, set the mode to ```development```. In that case you can ignore the above mentioned variables.
+# License
+This software is distributed under the GNU General Public License Version 3 on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
 
-5) Configure your webserver to execute the FastCGI application. If you are using Nginx, as adviced, you can use the default configuration, which is stored in the repository. For development purposes, you can just run:
-```
-sudo python main.py
-```
-
-# Documentation
-We are working on creating and translating the documentation for the openSchool Core. It is not done yet, so please wait.
-
-# Can I take openSchool for a spin without configuring the server?
-Currently, no. As the project is very new, no school is running any instances of openSchool. So for the time being you need to setup your own server to test out openSchool.
-
-# [License](https://github.com/opensch/backend/blob/main/LICENSE)
+For more information check the [LICENSE file](https://github.com/opensch/core/blob/master/LICENSE).
