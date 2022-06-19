@@ -8,38 +8,74 @@ import datetime, base64
 
 from config import Config
 
-
 app = Flask(__name__)
 
-if os.path.isdir("tokens/access") != True:
-	os.mkdir("tokens/access")
+def startup ():
+	"""
+	This is the initialization function. It is run first to prepare
+	the environment before starting up the Flask application, like folder
+	creation, configuration file checking, etc.
+	"""
+	  
+	# Creating folders to store OAuth codes
+	if os.path.isdir("codes") != True:
+		os.mkdir("codes")
+	if os.path.isdir("tokens") != True:
+		os.mkdir("tokens")
+	if os.path.isdir("tokens/access") != True:
+		os.mkdir("tokens/access")
+	if os.path.isdir("tokens/refresh") != True:
+		os.mkdir("tokens/refresh")
+		
+	# Checking the configuration file for the current mode
+	mode = Config().mode
+	key = Config().clientSecret 
+	
+	if mode == "production":   
+		if len(key) < 16:
+			raise "Client secret key too short (16 chars minimum)"
+		else:
+			debugging = False
+	
+	elif mode == "development":
+		debugging = True 
+	else:
+		raise f"Mode '{mode}' unknown. Waiting for 'production' or 'development'"
+	
+	# Starting up the Flask application
+	app.run(host = "0.0.0.0", port = Config().port, debug = debugging)
 
-if os.path.isdir("tokens/refresh") != True:
-	os.mkdir("tokens/refresh")
+
+def add_cors_headers(response: Response):
+	"""
+	Cross-origin resource sharing sometimes plays bad with
+	openSchool requests. As a ducktape solution, we allow
+	accessing the server from any domain. 
+
+	This fucntion add the CORS headers to the finallized response.
+	"""
+	
+	response.headers['Access-Control-Allow-Origin'] = '*'
+	response.headers['Access-Control-Allow-Headers'] = '*'
+	response.headers['Access-Control-Allow-Methods'] = '*'	
+
+	return response
+
 
 def e403():
-	r = Response("not allowed", status = 403)
-	r.headers['access-control-allow-origin'] = '*'
-	r.headers['Access-Control-Allow-Headers'] = '*'
-	r.headers['Access-Control-Allow-Methods'] = '*'
+	response = Response("not allowed", status = 403)
+	return add_cors_headers(response)
 
-	return r
 
 def e405():
-	r = Response("method not allowed", status = 405)
-	r.headers['access-control-allow-origin'] = '*'
-	r.headers['Access-Control-Allow-Headers'] = '*'
-	r.headers['Access-Control-Allow-Methods'] = '*'
+	response = Response("method not allowed", status = 405)
+	return add_cors_headers(response)
 
-	return r
 
 def e400():
-	r = Response("bad request", status = 400)
-	r.headers['access-control-allow-origin'] = '*'
-	r.headers['Access-Control-Allow-Headers'] = '*'
-	r.headers['Access-Control-Allow-Methods'] = '*'
+	response = Response("bad request", status = 400)
+	return add_cors_headers(response)
 
-	return r
 
 def stringToBool(string):
 	string = str(string)
@@ -50,16 +86,14 @@ def stringToBool(string):
 		return True
 	raise ValueError("invalid literal for stringToBool()")
 
+
 def timetable(date, request):
 	if request.method == 'POST':
 		return e405()
 
 	if request.method == 'OPTIONS':
-		r = Response("")
-		r.headers['Access-Control-Allow-Origin'] = "*"
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
+		response = Response("")
+		return add_cors_headers(response)
 
 	if 'Authorization' not in request.headers:
 		return e403()
@@ -73,21 +107,217 @@ def timetable(date, request):
 	if timetable == None:
 		timetable = classes.Timetable()
 
-	r = Response(json.dumps(timetable.toJSON()), status = 200)
-	r.headers['Content-Type'] = 'application/json'
-	r.headers['Access-Control-Allow-Origin'] = '*'
-	r.headers['Access-Control-Allow-Headers'] = '*'
-	r.headers['Access-Control-Allow-Methods'] = '*'
-	return r
+	response = Response(json.dumps(timetable.toJSON()), status = 200)
+	response.headers['Content-Type'] = 'application/json'
+	return add_cors_headers(response)
 
-@app.route("/getNotif", methods = [ 'GET', 'OPTIONS' ])
-def getNotificationSettings():
+
+def getIDbyToken(token):
+	# Check if access token exists
+
+	if( os.path.exists( "tokens/access/"+token ) ):
+		with open( "tokens/access/"+token, "response" ) as f:
+			j = json.loads( f.read() )
+			if time.time() > j['expires']:
+				return -1
+			return j['uid']
+
+	return -1
+
+
+def findProfileByToken(token):
+	uid = getIDbyToken(token)
+
+	if uid == -1:
+		return None
+
+	return classes.User.findById(uid)
+
+
+@app.route("/oauth/auth", methods = [ 'POST',  'OPTIONS' ])
+def auth():
 	if request.method == 'OPTIONS':
-		r = Response("")
-		r.headers['Access-Control-Allow-Origin'] = "*"
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
+		response = Response("")
+		return add_cors_headers(response)
+
+	args = request.form
+
+	if 'login' in args and 'password' in args and 'clientID' in args:
+		# Login and password in request, so we can try to auth user.
+
+		if args['clientID'] != Config().clientID:
+			return e403()
+
+		user = classes.User.findByLogin(args['login'])
+
+		if user == None:
+			return e403()
+
+		if args['login'] == user.login:
+			h = hashlib.sha512(args['password'].encode())
+			if user.password == h.hexdigest():
+				code = binascii.b2a_hex(os.urandom(15)).decode()
+				with open( 'codes/'+code, 'w' ) as f:
+					data = {}
+					data['uid'] = user.uid
+					data['time'] = time.time() + 300
+					f.write( json.dumps(data) )
+				
+				response = Response(code, status = 200)
+				return add_cors_headers(response)
+
+		return e403()
+
+	return e400()
+
+
+@app.route("/oauth/token", methods = [ "POST", "OPTIONS" ])
+def token_handler():
+	if request.method == "OPTIONS":
+		response = Response("")
+		return add_cors_headers(response)
+
+	arguments = request.form
+	
+	if "clientSecret" not in arguments:
+		return e400()
+	elif arguments["clientSecret"] != Config().clientSecret:
+		return e403()
+
+	if "refreshToken" in arguments:
+		directory = "tokens/refresh/" + arguments["refreshToken"]
+		
+		if os.path.exists(directory) != True:
+			return e403()
+		with open(directory) as file:
+			token_data = json.loads(file.read())
+		
+		if os.path.exists("tokens/access/" + token_data["lastToken"]):
+			os.remove("tokens/access/" + token_data["lastToken"])
+		
+		refresh_hash = arguments["refreshToken"]
+	
+	elif "code" in arguments:
+		directory = "codes/" + arguments["code"]
+
+		if os.path.exists(directory) != True:
+			return e403()
+		with open(directory) as file:
+			token_data = json.loads(file.read())
+
+		if token_data["time"] < time.time():
+			os.remove(directory + token)
+			return e403()
+		
+		refresh_hash = binascii.b2a_hex(os.urandom(32)).decode()
+
+	else:
+		return e400()
+
+	access_hash = binascii.b2a_hex(os.urandom(32)).decode()	
+	
+	if Config().mode == "production":
+		expiry_time = time.time() + 2592000
+	else:
+		expiry_time = time.time() + 1800
+	
+	access_data = {"uid": token_data["uid"], "expires": expiry_time}
+	refresh_data = {"uid": token_data["uid"], "lastToken": access_hash}
+
+	with open("tokens/access/" + access_hash, "w") as file:
+		file.write(json.dumps(access_data))
+	with open("tokens/refresh/" + refresh_hash, "w") as file:
+		file.write(json.dumps(refresh_data))
+
+	response = {
+		"accessToken": access_hash,
+		"refreshToken": refresh_hash,
+		"expiresIn": expiry_time
+	}
+
+	response = Response(json.dumps(response), status = 200)
+	response.headers["Content-Type"] = "application/json"
+	return add_cors_headers(response)
+
+
+@app.route("/user/whoami", methods = [ 'POST', 'GET', 'OPTIONS' ])
+def whoami():
+	if request.method == 'OPTIONS':
+		response = Response("")
+		return add_cors_headers(response)
+
+	if 'Authorization' not in request.headers:
+		return e403()
+
+	token = request.headers['Authorization']
+	profile = findProfileByToken(token)
+	if profile != None:
+		profile.password = ""
+		response = Response(json.dumps(profile.toJSON()), status = 200)
+		response.headers['Content-Type'] = 'application/json'
+		return add_cors_headers(response)
+	else:
+		return e403()
+
+
+@app.route("/user/notifications", methods = [ 'GET', 'POST', 'OPTIONS' ])
+def notifications_handler():
+	if 'Authorization' not in request.headers:
+		return e403()
+
+	token = request.headers['Authorization']
+	profile = findProfileByToken(token)
+	if profile == None:
+		return e403()
+	
+	if request.method == "GET":
+		response = Response( json.dumps(profile.notifParams), status = 200)
+		response.headers['Content-Type'] = "application/json"
+	
+	elif request.method == "POST":
+		args = request.form
+		
+		print([i for i in args])
+
+		found = 0
+
+		try:
+			if '10min' in args:
+				found = 1
+				profile.notifParams['10min'] = stringToBool(args['10min'])
+			if 'homework' in args:
+				found = 1
+				profile.notifParams['homework'] = stringToBool(args['homework'])
+			if 'homeworkTime' in args:
+				found = 1
+				profile.notifParams['homeworkTime'] = int(args['homeworkTime'])
+			if 'replacements' in args:
+				found = 1
+				profile.notifParams['replacements'] = stringToBool(args['replacements'])
+		except Exception:
+			pass
+
+		if found == 0:
+			return e400()
+
+		profile.editUser(profile)
+
+		response = Response(json.dumps({"status": "ok", "c": profile.notifParams}), status = 200)
+		response.headers['Content-Type'] = 'application/json'
+	
+	elif request.method == 'OPTIONS':
+		response = Response("")
+
+	return add_cors_headers(response)
+	
+
+@app.route("/user/passwd", methods = [ 'POST', 'GET', 'OPTIONS' ])
+def passwd():
+	if request.method == 'GET':
+		return e405()
+	elif request.method == 'OPTIONS':
+		response = Response("")
+		return add_cors_headers(response)
 
 	if 'Authorization' not in request.headers:
 		return e403()
@@ -97,22 +327,140 @@ def getNotificationSettings():
 	if profile == None:
 		return e403()
 
-	resp = Response( json.dumps(profile.notifParams), status = 200)
-	resp.headers['Content-Type'] = "application/json"
-	resp.headers['Access-Control-Allow-Origin'] = '*'
-	resp.headers['Access-Control-Allow-Headers'] = '*'
-	resp.headers['Access-Control-Allow-Methods'] = '*'
+	args = request.form
 
-	return resp
+	if 'old' in args and 'new' in args:
+		h = hashlib.sha512(args['old'].encode())
+		if profile.password == h.hexdigest():
+			h = hashlib.sha512(args['new'].encode())
+			nU = classes.User()
+			nU.password = h.hexdigest
+
+			profile.editUser(nU)
+
+			response = Response(json.dumps({"status": "ok"}), status = 200)
+			return add_cors_headers(response)
+		else:
+			return e403()
+	else:
+		return e400()
+		
+
+@app.route("/homework/<date>/<lesson>", methods = [ 'GET', 'POST', 'PUT', 'DELETE', 'OPTIONS' ])
+def homework_handler(date, lesson):
+	if 'Authorization' not in request.headers:
+		return e403()
+
+	token = request.headers['Authorization']
+	profile = findProfileByToken(token)
+	if profile == None:
+		return e403()
+	
+	if request.method == "GET":
+		date = datetime.datetime.strptime(date, '%d.%m.%Y')
+
+		if lesson != 'all':
+			c = classes.HomeworkObject.retrieveHomework(profile, date, int(lesson))
+		else:
+			c = classes.HomeworkObject.find(user_uid = profile.uid, lessonDate = date)
+
+		n = []
+		for i in c:
+			n.append(i.toJSON())
+
+		response = Response(json.dumps(n), status = 200)
+		response.headers['Content-Type'] = 'application/json'
+		
+	elif request.method == "POST":
+		args = request.form
+		nA = ['oldContentHash', 'contentN']
+		
+		if "oldContentHash" not in args:
+			return e400()
+		if "contentN" not in args:
+			return e400()
+
+		token = request.headers['Authorization']
+		profile = findProfileByToken(token)
+		if profile == None:
+			return e403()
+
+		date = datetime.datetime.strptime(date, '%d.%m.%Y')
+
+		c = classes.HomeworkObject.retrieveHomework(profile, date, int(lesson))
+		h = None
+
+		for i in c:
+			m = i.data.encode()
+			if base64.b64encode(m).decode() == args['oldContentHash']:
+				h = i
+
+		nH = classes.HomeworkObject()
+		nH.user_uid = profile.uid
+		nH.lessonDate = date
+		nH.lessonID = int(lesson)
+		nH.data = args['contentN']
+
+		if h != None:
+			print("Homework not found")
+			h.editHomework(nH)
+			response = Response("", status = 200)
+
+		return e400()
+	
+	elif request.method == "PUT":
+		args = request.form
+
+		if "content" not in args:
+			return e400()
+
+		token = request.headers['Authorization']
+		profile = findProfileByToken(token)
+		if profile == None:
+			return e403()
+
+		date = datetime.datetime.strptime(date, '%d.%m.%Y')
+
+		n = classes.HomeworkObject.createHomework(profile, date, int(lesson), args['content'])
+
+		response = Response("", status = 200)
+
+	elif request.method == "DELETE":
+		args = request.form
+		
+		if "contentHash" not in args:
+			return e400()
+
+		token = request.headers['Authorization']
+		profile = findProfileByToken(token)
+		if profile == None:
+			return e403()
+
+		date = datetime.datetime.strptime(args['date'], '%d.%m.%Y')
+
+		c = classes.HomeworkObject.retrieveHomework(profile, date, int(args['lesson']))
+		h = None
+
+		for i in c:
+			h = i.data.encode()
+			if base64.b64encode(h).decode() == args['contentHash']:
+				h = i
+
+		h.deleteHomework()
+
+		response = Response("", status = 200)
+		
+	elif request.method == "OPTIONS":
+		response = Response("")
+
+	return add_cors_headers(response)
+
 
 @app.route("/time", methods = [ 'GET', 'OPTIONS' ])
 def getTime():
 	if request.method == 'OPTIONS':
-		r = Response("")
-		r.headers['Access-Control-Allow-Origin'] = "*"
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
+		response = Response("")
+		return add_cors_headers(response)
 
 	if 'Authorization' not in request.headers:
 		return e403()
@@ -141,14 +489,15 @@ def getTime():
 
 	return ret
 
+
 @app.route("/times", methods = [ 'GET', 'OPTIONS' ])
 def getTimes():
 	if request.method == 'OPTIONS':
-		r = Response("")
-		r.headers['Access-Control-Allow-Origin'] = "*"
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
+		response = Response("")
+		response.headers['Access-Control-Allow-Origin'] = "*"
+		
+		
+		return add_cors_headers(response)
 
 	if 'Authorization' not in request.headers:
 		return e403()
@@ -169,63 +518,10 @@ def getTimes():
 	try:
 		ret = Response(json.dumps(timeObj), status = 200)
 		ret.headers['Content-Type'] = 'application/json'
-		ret.headers['Access-Control-Allow-Origin'] = '*'
-		ret.headers['Access-Control-Allow-Headers'] = '*'
-		ret.headers['Access-Control-Allow-Methods'] = '*'
 	except Exception:
 		return e400()
 
-	return ret
-
-@app.route("/setNotif", methods = [ 'GET', 'OPTIONS' ])
-def setNotificationSettings():
-	if request.method == 'OPTIONS':
-		r = Response("")
-		r.headers['Access-Control-Allow-Origin'] = "*"
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
-
-	if 'Authorization' not in request.headers:
-		return e403()
-
-	token = request.headers['Authorization']
-	profile = findProfileByToken(token)
-	if profile == None:
-		return e403()
-	   
-	args = request.args
-
-	found = 0
-
-	try:
-		if '10min' in args:
-			found = 1
-			profile.notifParams['10min'] = stringToBool(args['10min'])
-		if 'homework' in args:
-			found = 1
-			profile.notifParams['homework'] = stringToBool(args['homework'])
-		if 'homeworkTime' in args:
-			found = 1
-			profile.notifParams['homeworkTime'] = int(args['homeworkTime'])
-		if 'replacements' in args:
-			found = 1
-			profile.notifParams['replacements'] = stringToBool(args['replacements'])
-	except Exception:
-		pass
-
-	if found == 0:
-		return e400()
-
-	profile.editUser(profile)
-
-	r = Response(json.dumps({"status": "ok", "c": profile.notifParams}), status = 200)
-	r.headers['Content-Type'] = 'application/json'
-	r.headers['Access-Control-Allow-Origin'] = '*'
-	r.headers['Access-Control-Allow-Headers'] = '*'
-	r.headers['Access-Control-Allow-Methods'] = '*'
-
-	return r
+	return add_cors_headers(ret)
 	
 
 @app.route("/newfirebase", methods = [ 'POST', 'GET', 'OPTIONS' ])
@@ -234,11 +530,8 @@ def addToken():
 		return e405()
 
 	if request.method == 'OPTIONS':
-		r = Response("")
-		r.headers['Access-Control-Allow-Origin'] = "*"
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
+		response = Response("")
+		return add_cors_headers(response)
 
 	if 'Authorization' not in request.headers:
 		return e403()
@@ -255,217 +548,23 @@ def addToken():
 			profile.tokens.append( args['token'] )
 			profile.editUser(profile)
 
-		r = Response(json.dumps({"status": "ok"}), status = 200)
-		r.headers['Content-Type'] = 'application/json'
-		r.headers['Access-Control-Allow-Origin'] = '*'
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-
-		return r
+		response = Response(json.dumps({"status": "ok"}), status = 200)
+		response.headers['Content-Type'] = 'application/json'
+		return add_cors_headers(response)
 	else:
 		return e400()
 
-@app.route("/passwd", methods = [ 'POST', 'GET', 'OPTIONS' ])
-def passwd():
-	if request.method == 'GET':
-		return e405()
-
-	if request.method == 'OPTIONS':
-		r = Response("")
-		r.headers['Access-Control-Allow-Origin'] = "*"
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
-
-	if 'Authorization' not in request.headers:
-		return e403()
-
-	token = request.headers['Authorization']
-	profile = findProfileByToken(token)
-	if profile == None:
-		return e403()
-
-	args = request.form
-
-	if 'old' in args and 'new' in args:
-		h = hashlib.sha512(args['old'].encode())
-		if profile.password == h.hexdigest():
-			h = hashlib.sha512(args['new'].encode())
-			nU = classes.User()
-			nU.password = h.hexdigest
-
-			profile.editUser(nU)
-
-			r = Response(json.dumps({"status": "ok"}), status = 200)
-			r.headers['Content-Type'] = 'application/json'
-			r.headers['Access-Control-Allow-Origin'] = '*'
-			r.headers['Access-Control-Allow-Headers'] = '*'
-			r.headers['Access-Control-Allow-Methods'] = '*'
-
-			return r
-		else:
-			return e403()
-	else:
-		return e400()
-
-@app.route("/homework/<date>/<lesson>", methods = [ 'GET', 'OPTIONS' ])
-def gHomework(date, lesson):
-	if request.method == 'OPTIONS':
-		r = Response("")
-		r.headers['Access-Control-Allow-Origin'] = "*"
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
-
-	if 'Authorization' not in request.headers:
-		return e403()
-
-	token = request.headers['Authorization']
-	profile = findProfileByToken(token)
-	if profile == None:
-		return e403()
-
-	date = datetime.datetime.strptime(date, '%d.%m.%Y')
-
-
-	if lesson != 'all':
-		c = classes.HomeworkObject.retrieveHomework(profile, date, int(lesson))
-	else:
-		c = classes.HomeworkObject.find(user_uid = profile.uid, lessonDate = date)
-
-	n = []
-	for i in c:
-		n.append(i.toJSON())
-
-	r = Response(json.dumps(n), status = 200)
-	r.headers['Content-Type'] = 'application/json'
-	r.headers['Access-Control-Allow-Origin'] = '*'
-	r.headers['Access-Control-Allow-Headers'] = '*'
-	r.headers['Access-Control-Allow-Methods'] = '*'
-
-	return r
-
-@app.route("/editHomework", methods = [ 'POST', 'OPTIONS' ])
-def editHomework():
-	if request.method == 'OPTIONS':
-		r = Response("")
-		r.headers['Access-Control-Allow-Origin'] = "*"
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
-
-	if 'Authorization' not in request.headers:
-		return e403()
-
-	args = request.form
-	nA = ['date', 'lesson', 'oldContentHash', 'dateN', 'lessonN', 'contentN']
-
-	for x in nA:
-		if x not in args:
-			return e400()
-
-	token = request.headers['Authorization']
-	profile = findProfileByToken(token)
-	if profile == None:
-		return e403()
-
-	date = datetime.datetime.strptime(args['date'], '%d.%m.%Y')
-
-	c = classes.HomeworkObject.retrieveHomework(profile, date, int(args['lesson']))
-	h = None
-
-	for i in c:
-		m = i.data.encode()
-		if base64.b64encode(m).decode() == args['oldContentHash']:
-			h = i
-
-	nH = classes.HomeworkObject()
-	nH.user_uid = profile.uid
-	nH.lessonDate = datetime.datetime.strptime(args['dateN'], '%d.%m.%Y')
-	nH.lessonID = int(args['lessonN'])
-	nH.data = args['contentN']
-
-	if h != None:
-		h.editHomework(nH)
-		return '', 200
-	return e400()
-	
-@app.route("/delHomework", methods = [ 'POST', 'OPTIONS' ])
-def delHomework():
-		if request.method == 'OPTIONS':
-			r = Response("")
-			r.headers['Access-Control-Allow-Origin'] = "*"
-			r.headers['Access-Control-Allow-Headers'] = '*'
-			r.headers['Access-Control-Allow-Methods'] = '*'
-			return r
-
-		if 'Authorization' not in request.headers:
-				return e403()
-
-		args = request.form
-		nA = ['date', 'lesson', 'contentHash']
-
-		for x in nA:
-				if x not in args:
-						return e400()
-
-		token = request.headers['Authorization']
-		profile = findProfileByToken(token)
-		if profile == None:
-				return e403()
-
-		date = datetime.datetime.strptime(args['date'], '%d.%m.%Y')
-
-		c = classes.HomeworkObject.retrieveHomework(profile, date, int(args['lesson']))
-		h = None
-
-		for i in c:
-				h = i.data.encode()
-				if base64.b64encode(h).decode() == args['contentHash']:
-						h = i
-
-		h.deleteHomework()
-
-		return '', 200
-
-@app.route('/appendHomework', methods = [ 'POST', 'OPTIONS' ])
-def appendHomework():
-	if request.method == 'OPTIONS':
-		r = Response("")
-		r.headers['Access-Control-Allow-Origin'] = "*"
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
-
-	if 'Authorization' not in request.headers:
-		return e403()
-
-	args = request.form
-	nA = ['date', 'lesson', 'content']
-
-	for x in nA:
-		if x not in args:
-			return e400()
-
-	token = request.headers['Authorization']
-	profile = findProfileByToken(token)
-	if profile == None:
-		return e403()
-
-	date = datetime.datetime.strptime(args['date'], '%d.%m.%Y')
-
-	n = classes.HomeworkObject.createHomework(profile, date, int(args['lesson']), args['content'])
-
-	return '', 200
 
 @app.route("/timetable", methods = [ 'POST', 'GET', 'OPTIONS' ])
 def timetableToday():
 	return timetable(datetime.datetime.now(), request)
 
+
 @app.route("/timetable/<date>", methods = [ 'POST', 'GET', 'OPTIONS' ])
 def timetableDate(date):
 	date = datetime.datetime.strptime(date, '%d.%m.%Y')
 	return timetable(date, request)
+
 
 @app.route("/lesson", methods = ['POST', 'GET', 'OPTIONS'])
 def lesson():
@@ -473,11 +572,9 @@ def lesson():
 		return e405()
 
 	if request.method == 'OPTIONS':
-		r = Response("")
-		r.headers['Access-Control-Allow-Origin'] = "*"
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
+		response = Response("")
+		response.headers['Access-Control-Allow-Origin'] = "*"
+		return add_cors_headers(response)
 
 	if 'Authorization' not in request.headers:
 		return e403()
@@ -494,19 +591,16 @@ def lesson():
 
 		foundLessonID = classes.Lesson.findById(lessonID)
 		if(foundLessonID == None):
-			r = Response(json.dumps({}), status = 200)
-			r.headers['Content-Type'] = 'application/json'
-			r.headers['Access-Control-Allow-Origin'] = '*'
-			r.headers['Access-Control-Allow-Headers'] = '*'
-			r.headers['Access-Control-Allow-Methods'] = '*'
-			return r
+			response = Response(json.dumps({}), status = 200)
+			response.headers['Content-Type'] = 'application/json'
 
-		r = Response(json.dumps(foundLessonID.toJSON()), status = 200)
-		r.headers['Access-Control-Allow-Origin'] = '*'
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
+			return add_cors_headers(response)
+
+		response = Response(json.dumps(foundLessonID.toJSON()), status = 200)
+		return add_cors_headers(response)
+	
 	return e400()
+
 
 @app.route("/cabinet", methods = ['POST', 'GET', 'OPTIONS'])
 def cabinet():
@@ -514,11 +608,9 @@ def cabinet():
 		return e405()
 
 	if request.method == 'OPTIONS':
-		r = Response("")
-		r.headers['Access-Control-Allow-Origin'] = "*"
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
+		response = Response("")
+		response.headers['Access-Control-Allow-Origin'] = "*"
+		return add_cors_headers(response)
 
 	if 'Authorization' not in request.headers:
 		return e403()
@@ -542,12 +634,9 @@ def cabinet():
 			else:
 				convertedCabinets.append(cabinet.toJSON())
 
-		r = Response(json.dumps(convertedCabinets), status = 200)
-		r.headers['Content-Type'] = 'application/json'
-		r.headers['Access-Control-Allow-Origin'] = '*'
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
+		response = Response(json.dumps(convertedCabinets), status = 200)
+		response.headers['Content-Type'] = 'application/json'
+		return add_cors_headers(response)
 
 	elif 'number' in args:
 		classNumber = int(args['number'])
@@ -555,252 +644,23 @@ def cabinet():
 		foundCabinet = classes.Cabinet.findByNumber(classNumber)
 
 		if foundCabinet == None:
-			r = Response(json.dumps({}), status = 200)
-			r.headers['Content-Type'] = 'application/json'
-			r.headers['Access-Control-Allow-Origin'] = '*'
-			r.headers['Access-Control-Allow-Headers'] = '*'
-			r.headers['Access-Control-Allow-Methods'] = '*'
-			return r
+			response = Response(json.dumps({}), status = 200)
+			response.headers['Content-Type'] = 'application/json'
+			return add_cors_headers(response)
 
-		r = Response(json.dumps(foundCabinet.toJSON()), status = 200)
-		r.headers['Content-Type'] = 'application/json'
-		r.headers['Access-Control-Allow-Origin'] = '*'
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
-	return e400()
-
-@app.route("/auth", methods = [ 'POST', 'GET', 'OPTIONS' ])
-def auth():
-	if request.method == 'GET':
-		return e405()
-
-	if request.method == 'OPTIONS':
-		r = Response("")
-		r.headers['Access-Control-Allow-Origin'] = "*"
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
-
-	args = request.form
-
-	if 'login' in args and 'password' in args and 'clientID' in args:
-		# Login and password in request, so we can try to auth user.
-
-		if args['clientID'] != Config().clientID:
-			return e403()
-
-		user = classes.User.findByLogin(args['login'])
-
-		if user == None:
-			return e403()
-
-		if args['login'] == user.login:
-			h = hashlib.sha512(args['password'].encode())
-			if user.password == h.hexdigest():
-				code = binascii.b2a_hex(os.urandom(15)).decode()
-				with open( 'codes/'+code, 'w' ) as f:
-					data = {}
-					data['uid'] = user.uid
-					data['time'] = time.time() + 300
-					f.write( json.dumps(data) )
-				r = Response(code, status = 200)
-				r.headers['Content-Type'] = 'application/json'
-				r.headers['Access-Control-Allow-Origin'] = '*'
-				r.headers['Access-Control-Allow-Headers'] = '*'
-				r.headers['Access-Control-Allow-Methods'] = '*'
-
-				return r
-
-		return e403()
-
-	return e400()
-
-@app.route("/exchange", methods = [ 'POST', 'GET', 'OPTIONS' ])
-def exchange():
-	if request.method == 'GET':
-		return e405()
-
-	if request.method == 'OPTIONS':
-		r = Response("")
-		r.headers['Access-Control-Allow-Origin'] = "*"
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
-
-	args = request.form
-	resp = None
-
-	if 'clientSecret' in args and 'code' in args:
-		# Check if code exists.
-
-		if os.path.exists( "codes/"+args['code'] ) != True:
-			return e403()
-
-		#OK! Code exists. Let's verify it's date and verify clientSecret
-
-		if args['clientSecret'] != Config().clientSecret:
-			return e403()
-
-		with open( "codes/"+args['code'], "r" ) as f:
-			j = json.loads( f.read() )
-			if( j['time'] > time.time() ):
-				# Code ok, so we can create access and refresh token.
-
-				expiresDate = time.time() + 2592000
-				if Config().mode == "development":
-					#For development mode we'll use tokens that expires after 30 minutes.
-					expiresDate = time.time() + 1800
-
-				tokenHash = binascii.b2a_hex(os.urandom(32)).decode()
-				refreshHash = binascii.b2a_hex(os.urandom(32)).decode()
-
-				tokenData = { "uid": j['uid'], "expires": expiresDate}
-				refreshData = { "uid": j['uid'], "lastToken": tokenHash}
-
-				with open( "tokens/access/"+tokenHash, "w" ) as f:
-					f.write( json.dumps(tokenData) )
-
-				with open( "tokens/refresh/"+refreshHash, "w" ) as f:
-					f.write( json.dumps(refreshData) )
-
-				resp = {
-					"accessToken": tokenHash,
-					"refreshToken": refreshHash,
-					"expiresIn": expiresDate
-				}
-
-		if resp != None:
-			os.remove( "codes/"+args['code'] )				
-
-			r = Response( json.dumps(resp), status = 200 )
-			r.headers['Content-Type'] = 'application/json'
-			r.headers['Access-Control-Allow-Origin'] = '*'
-			r.headers['Access-Control-Allow-Headers'] = '*'
-			r.headers['Access-Control-Allow-Methods'] = '*'
-			return r
-			
-		return e403()
-
-	return e400()
-
-@app.route("/refresh", methods = [ 'POST', 'GET', 'OPTIONS' ])
-def refresh():
-	if request.method == 'OPTIONS':
-		r = Response("")
-		r.headers['Access-Control-Allow-Origin'] = "*"
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
-
-	if request.method == 'GET':
-		return e405()
-
-	args = request.form
-
-	if 'clientSecret' in args and 'refreshToken' in args:
-		# Check if token exists.
-
-		if os.path.exists( "tokens/refresh/"+args['refreshToken'] ) != True:
-			return e403()
-
-		#OK! Token exists. Let's verify it's date and verify clientSecret
-
-		if args['clientSecret'] != Config().clientSecret:
-			return e403()
-		
-		with open( "tokens/refresh/"+args['refreshToken'], "r+" ) as f:
-			j = json.loads( f.read() )
-# We need to delete last token (to revoke it and to clean up folder with tokens)
-
-			if os.path.exists( "tokens/access/" + j['lastToken'] ):
-				print("del")
-				os.remove("tokens/access/" + j['lastToken'] )
+		response = Response(json.dumps(foundCabinet.toJSON()), status = 200)
+		response.headers['Content-Type'] = 'application/json'
+		return add_cors_headers(response)
 	
-			expiresDate = time.time() + 2592000
-			if Config().mode == "development":
-				# For development mode we'll use tokens that expires after 30 minutes.
-				expiresDate = time.time() + 1800
-			
-			tokenHash = binascii.b2a_hex(os.urandom(32)).decode()
-			tokenData = { "uid": j['uid'], "expires": expiresDate}
-				
-			with open( "tokens/access/"+tokenHash, "w" ) as x:
-				x.write( json.dumps(tokenData) )
-
-			resp = {
-				"accessToken": tokenHash,
-				"refreshToken": args['refreshToken'],
-				"expiresIn": expiresDate
-			}
-
-			f.seek(0)
-
-			j['lastToken'] = tokenHash
-			f.write( json.dumps(j) )
-
-			r = Response( json.dumps(resp), status = 200 )
-			r.headers['Content-Type'] = 'application/json'
-			r.headers['Access-Control-Allow-Origin'] = '*'
-			r.headers['Access-Control-Allow-Headers'] = '*'
-			r.headers['Access-Control-Allow-Methods'] = '*'
-			return r
-
 	return e400()
 
-def getIDbyToken(token):
-	# Check if access token exists
-
-	if( os.path.exists( "tokens/access/"+token ) ):
-		with open( "tokens/access/"+token, "r" ) as f:
-			j = json.loads( f.read() )
-			if time.time() > j['expires']:
-				return -1
-			return j['uid']
-
-	return -1
-
-def findProfileByToken(token):
-	uid = getIDbyToken(token)
-
-	if uid == -1:
-		return None
-
-	return classes.User.findById(uid)
-
-@app.route("/whoami", methods = [ 'POST', 'GET', 'OPTIONS' ])
-def whoami():
-	if request.method == 'OPTIONS':
-		r = Response("")
-		r.headers['Access-Control-Allow-Origin'] = "*"
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
-
-	if 'Authorization' not in request.headers:
-		return e403()
-
-	token = request.headers['Authorization']
-	profile = findProfileByToken(token)
-	if profile != None:
-		profile.password = ""
-		r = Response(json.dumps(profile.toJSON()), status = 200)
-		r.headers['Content-Type'] = 'application/json'
-		r.headers['Access-Control-Allow-Origin'] = '*'
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		return r
-	else:
-		return e403()
 
 @app.route("/cdn/<path:data>", methods = [ 'GET', 'OPTIONS' ])
 def cdn(data):
 	if request.method == 'OPTIONS':
-		r = Response("")
-		r.headers['Access-Control-Allow-Origin'] = "*"
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
+		response = Response("")
+		response.headers['Access-Control-Allow-Origin'] = "*"
+		return add_cors_headers(response)
 
 	if 'Authorization' not in request.headers:
 		return e403()
@@ -845,19 +705,13 @@ def cdn(data):
 
 	response = make_response(send_file(serverDir))
 	response.headers['Content-Type'] = mime
-	response.headers['Access-Control-Allow-Origin'] = '*'
-	response.headers['Access-Control-Allow-Headers'] = '*'
-	response.headers['Access-Control-Allow-Methods'] = '*'
-	return response
+	return add_cors_headers(response)
 
 @app.route("/privAPI/getClasses", methods = [ 'GET', 'OPTIONS' ])
 def getClasses():
 	if request.method == 'OPTIONS':
-		r = Response("")
-		r.headers['Access-Control-Allow-Origin'] = "*"
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
+		response = Response("")
+		return add_cors_headers(response)
 
 	if 'Authorization' not in request.headers:
 		return e403()
@@ -868,12 +722,8 @@ def getClasses():
 		return e403()
 
 	if 'role' not in profile.flags or profile.flags['role'] == 0:
-		r = Response("We're ready to pay you 1 dollar because you found this method. Next stage is to crack this. Good Luck!", status = 403)
-		r.headers['access-control-allow-origin'] = '*'
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-	
-		return r
+		response = Response("We're ready to pay you 1 dollar because you found this method. Next stage is to crack this. Good Luck!", status = 403)
+		return add_cors_headers(response)
 
 	timetable = classes.createMongo().timetable
 
@@ -886,22 +736,15 @@ def getClasses():
 		for classLetter in class_letters:
 			classes.append({"classNumber": classNumber, "classLetter": classLetter})
 
-	r = Response(json.dumps(classes), status = 200)
-	r.headers['Content-Type'] = 'application/json'
-	r.headers['Access-Control-Allow-Origin'] = "*"
-	r.headers['Access-Control-Allow-Headers'] = '*'
-	r.headers['Access-Control-Allow-Methods'] = '*'
-
-	return r
+	response = Response(json.dumps(classes), status = 200)
+	response.headers['Content-Type'] = 'application/json'
+	return add_cors_headers(response)
 
 @app.route("/privAPI/getClassTimetable", methods = [ 'GET', 'OPTIONS' ])
 def getClassTimetable():
 	if request.method == 'OPTIONS':
-		r = Response("")
-		r.headers['Access-Control-Allow-Origin'] = "*"
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
+		response = Response("")
+		return add_cors_headers(response)
 
 	if 'Authorization' not in request.headers:
 		return e403()
@@ -912,12 +755,8 @@ def getClassTimetable():
 		return e403()
 
 	if 'role' not in profile.flags or profile.flags['role'] == 0:
-		r = Response("We're ready to pay you 1 dollar because you found this method. Next stage is to crack this. Good Luck!", status = 403)
-		r.headers['access-control-allow-origin'] = '*'
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-	
-		return r
+		response = Response("We're ready to pay you 1 dollar because you found this method. Next stage is to crack this. Good Luck!", status = 403)
+		return add_cors_headers(response)
 
 	classNumber = request.args.get("classNumber")
 	classLetter = request.args.get("classLetter")
@@ -961,23 +800,16 @@ def getClassTimetable():
 				tmp.append(lesson.toJSON())
 			final[i].append(tmp)
 			
-	r = Response(json.dumps(final), status = 200)
-	r.headers['Content-Type'] = 'application/json'
-	r.headers['Access-Control-Allow-Origin'] = "*"
-	r.headers['Access-Control-Allow-Headers'] = '*'
-	r.headers['Access-Control-Allow-Methods'] = '*'
-
-	return r
+	response = Response(json.dumps(final), status = 200)
+	response.headers['Content-Type'] = 'application/json'
+	return add_cors_headers(response)
 
 
 @app.route("/privAPI/createReplacement", methods = [ "POST", "OPTIONS" ])
 def createReplacement ():
 	if request.method == 'OPTIONS':
-		r = Response("")
-		r.headers['Access-Control-Allow-Origin'] = "*"
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
+		response = Response("")
+		return add_cors_headers(response)
 	
 	if 'Authorization' not in request.headers:
 		return e403()
@@ -988,12 +820,8 @@ def createReplacement ():
 		return e403()
 	
 	if 'role' not in profile.flags or profile.flags['role'] == 0:
-		r = Response("We're ready to pay you 1 dollar because you found this method. Next stage is to crack this. Good Luck!", status = 403)
-		r.headers['access-control-allow-origin'] = '*'
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-
-		return r
+		response = Response("We're ready to pay you 1 dollar because you found this method. Next stage is to crack this. Good Luck!", status = 403)
+		return add_cors_headers(response)
 	
 	request_data = request.get_json()
 	
@@ -1016,22 +844,15 @@ def createReplacement ():
 		response = Response('', status = 200)
 	else:
 		response = Response('', status = 400)
-	
-	response.headers['Access-Control-Allow-Origin'] = "*"
-	response.headers['Access-Control-Allow-Headers'] = '*'
-	response.headers['Access-Control-Allow-Methods'] = '*'
 
-	return response
+	return add_cors_headers(response)
 
 
 @app.route("/privAPI/editReplacement", methods = [ "POST", "OPTIONS" ])
 def editReplacement ():
 	if request.method == 'OPTIONS':
-		r = Response("")
-		r.headers['Access-Control-Allow-Origin'] = "*"
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
+		response = Response("")
+		return add_cors_headers(response)
 	
 	if 'Authorization' not in request.headers:
 		return e403()
@@ -1042,12 +863,8 @@ def editReplacement ():
 		return e403()
 	
 	if 'role' not in profile.flags or profile.flags['role'] == 0:
-		r = Response("We're ready to pay you 1 dollar because you found this method. Next stage is to crack this. Good Luck!", status = 403)
-		r.headers['access-control-allow-origin'] = '*'
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-	
-		return r
+		response = Response("We're ready to pay you 1 dollar because you found this method. Next stage is to crack this. Good Luck!", status = 403)
+		return add_cors_headers(response)
 	
 	request_data = request.get_json()
 	
@@ -1071,21 +888,14 @@ def editReplacement ():
 	else:
 		response = Response('', status = 400)
 	
-	response.headers['Access-Control-Allow-Origin'] = "*"
-	response.headers['Access-Control-Allow-Headers'] = '*'
-	response.headers['Access-Control-Allow-Methods'] = '*'
-	
-	return response
+	return add_cors_headers(response)
 
 
 @app.route("/privAPI/deleteReplacement", methods = [ "POST", "OPTIONS" ])  
 def deleteReplacement ():
 	if request.method == 'OPTIONS':
-		r = Response("")
-		r.headers['Access-Control-Allow-Origin'] = "*"
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
+		response = Response("")
+		return add_cors_headers(response)
 	
 	if 'Authorization' not in request.headers:
 		return e403()
@@ -1096,12 +906,8 @@ def deleteReplacement ():
 		return e403()
 	
 	if 'role' not in profile.flags or profile.flags['role'] == 0:
-		r = Response("We're ready to pay you 1 dollar because you found this method. Next stage is to crack this. Good Luck!", status = 403)
-		r.headers['access-control-allow-origin'] = '*'
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-	
-		return r
+		response = Response("We're ready to pay you 1 dollar because you found this method. Next stage is to crack this. Good Luck!", status = 403)
+		return add_cors_headers(response)
 
 	request_data = request.get_json()
 	
@@ -1115,22 +921,14 @@ def deleteReplacement ():
 	classes.Replacement.delete(date, position, class_number, class_letter)  
 	
 	response = Response('', status = 200)
-
-	response.headers['Access-Control-Allow-Origin'] = "*"
-	response.headers['Access-Control-Allow-Headers'] = '*'
-	response.headers['Access-Control-Allow-Methods'] = '*'
-	
-	return response
+	return add_cors_headers(response)
 
 
 @app.route("/privAPI/createNews", methods = ["POST", "OPTIONS"])
 def createNews():
 	if request.method == 'OPTIONS':
-		r = Response("")
-		r.headers['Access-Control-Allow-Origin'] = "*"
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
+		response = Response("")
+		return add_cors_headers(response)
 	
 	if 'Authorization' not in request.headers:
 		return e403()
@@ -1141,12 +939,8 @@ def createNews():
 		return e403()
 	
 	if 'role' not in profile.flags or profile.flags['role'] == 0:
-		r = Response("We're ready to pay you 1 dollar because you found this method. Next stage is to crack this. Good Luck!", status = 403)
-		r.headers['access-control-allow-origin'] = '*'
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-	
-		return r
+		response = Response("We're ready to pay you 1 dollar because you found this method. Next stage is to crack this. Good Luck!", status = 403)
+		return add_cors_headers(response)
 
 	request_data = request.get_json()
 
@@ -1162,21 +956,14 @@ def createNews():
 	else:
 		response = Response("", 400)
 
-	response.headers['Access-Control-Allow-Origin'] = "*"
-	response.headers['Access-Control-Allow-Headers'] = '*'
-	response.headers['Access-Control-Allow-Methods'] = '*'
-
-	return response
+	return add_cors_headers(response)
 
 
 @app.route("/privAPI/editNews", methods = ["POST", "OPTIONS"])
 def editNews():
 	if request.method == 'OPTIONS':
-		r = Response("")
-		r.headers['Access-Control-Allow-Origin'] = "*"
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
+		response = Response("")
+		return add_cors_headers(response)
 	
 	if 'Authorization' not in request.headers:
 		return e403()
@@ -1187,18 +974,14 @@ def editNews():
 		return e403()
 	
 	if 'role' not in profile.flags or profile.flags['role'] == 0:
-		r = Response("We're ready to pay you 1 dollar because you found this method. Next stage is to crack this. Good Luck!", status = 403)
-		r.headers['access-control-allow-origin'] = '*'
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-	
-		return r
+		response = Response("We're ready to pay you 1 dollar because you found this method. Next stage is to crack this. Good Luck!", status = 403)
+		return add_cors_headers(response)
 
 	request_data = request.get_json()
 	
 	title = reqeust_data ["title"]
 	new_data = request_data ["data"]
-    
+	
 	news = classes.News.search(title)
 
 	if news == None:
@@ -1207,21 +990,14 @@ def editNews():
 		news.edit(new_data)
 		response = Response("", 200)
 
-	response.headers['access-control-allow-origin'] = '*'
-	response.headers['Access-Control-Allow-Headers'] = '*'
-	response.headers['Access-Control-Allow-Methods'] = '*'
-
-	return response
+	return add_cors_headers(response)
 
 
 @app.route("/privAPI/deleteNews", methods = ["POST", "OPTIONS"])
 def deleteNews():
 	if request.method == 'OPTIONS':
-		r = Response("")
-		r.headers['Access-Control-Allow-Origin'] = "*"
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-		return r
+		response = Response("")
+		return add_cors_headers(response)
 	
 	if 'Authorization' not in request.headers:
 		return e403()
@@ -1232,12 +1008,8 @@ def deleteNews():
 		return e403()
 	
 	if 'role' not in profile.flags or profile.flags['role'] == 0:
-		r = Response("We're ready to pay you 1 dollar because you found this method. Next stage is to crack this. Good Luck!", status = 403)
-		r.headers['access-control-allow-origin'] = '*'
-		r.headers['Access-Control-Allow-Headers'] = '*'
-		r.headers['Access-Control-Allow-Methods'] = '*'
-	
-		return r
+		response = Response("We're ready to pay you 1 dollar because you found this method. Next stage is to crack this. Good Luck!", status = 403)
+		return add_cors_headers(response)
 
 	request_data = request.get_json()
 	
@@ -1250,35 +1022,14 @@ def deleteNews():
 		news.delete()
 		response = Response("", 410)
 
-	response.headers['access-control-allow-origin'] = '*'
-	response.headers['Access-Control-Allow-Headers'] = '*'
-	response.headers['Access-Control-Allow-Methods'] = '*'
-
-	return response
+	return add_cors_headers(response)
 
 
 @app.route("/")
 def main():
-	r = Response("Not Found", status = 404)
-	r.headers['Access-Control-Allow-Origin'] = '*'
-	r.headers['Access-Control-Allow-Headers'] = '*'
-	r.headers['Access-Control-Allow-Methods'] = '*'
+	response = Response("Not Found", status = 404)
+	return add_cors_headers(response)
 
-	return r
-
-#Checks for status
-
-debug = None
-
-if Config().mode == "production":
-	if len(Config().clientSecret) < 16:
-		raise "Use more secure clientSecret. See 'config.py'"
-	debug = False
-elif Config().mode == "development":
-	# No checks in dev. mode
-	debug = True 
-else:
-	raise "Unkown mode. Supported modes: development / production. Check main.py line 6"
 
 if __name__ == "__main__":
-	app.run(host = "0.0.0.0", port = Config().port, debug = debug)
+	startup()
