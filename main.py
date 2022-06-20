@@ -62,18 +62,23 @@ def add_cors_headers(response: Response):
 	return response
 
 
+def e400():
+	response = Response("Bad request", status = 400)
+	return add_cors_headers(response)
+
+
 def e403():
-	response = Response("not allowed", status = 403)
+	response = Response("Not allowed", status = 403)
+	return add_cors_headers(response)
+
+
+def e404():
+	response = Response("Not found", status = 404)
 	return add_cors_headers(response)
 
 
 def e405():
-	response = Response("method not allowed", status = 405)
-	return add_cors_headers(response)
-
-
-def e400():
-	response = Response("bad request", status = 400)
+	response = Response("Method not allowed", status = 405)
 	return add_cors_headers(response)
 
 
@@ -116,7 +121,7 @@ def getIDbyToken(token):
 	# Check if access token exists
 
 	if( os.path.exists( "tokens/access/"+token ) ):
-		with open( "tokens/access/"+token, "response" ) as f:
+		with open( "tokens/access/"+token, "r" ) as f:
 			j = json.loads( f.read() )
 			if time.time() > j['expires']:
 				return -1
@@ -494,9 +499,6 @@ def getTime():
 def getTimes():
 	if request.method == 'OPTIONS':
 		response = Response("")
-		response.headers['Access-Control-Allow-Origin'] = "*"
-		
-		
 		return add_cors_headers(response)
 
 	if 'Authorization' not in request.headers:
@@ -573,7 +575,6 @@ def lesson():
 
 	if request.method == 'OPTIONS':
 		response = Response("")
-		response.headers['Access-Control-Allow-Origin'] = "*"
 		return add_cors_headers(response)
 
 	if 'Authorization' not in request.headers:
@@ -593,7 +594,6 @@ def lesson():
 		if(foundLessonID == None):
 			response = Response(json.dumps({}), status = 200)
 			response.headers['Content-Type'] = 'application/json'
-
 			return add_cors_headers(response)
 
 		response = Response(json.dumps(foundLessonID.toJSON()), status = 200)
@@ -609,7 +609,6 @@ def cabinet():
 
 	if request.method == 'OPTIONS':
 		response = Response("")
-		response.headers['Access-Control-Allow-Origin'] = "*"
 		return add_cors_headers(response)
 
 	if 'Authorization' not in request.headers:
@@ -659,7 +658,6 @@ def cabinet():
 def cdn(data):
 	if request.method == 'OPTIONS':
 		response = Response("")
-		response.headers['Access-Control-Allow-Origin'] = "*"
 		return add_cors_headers(response)
 
 	if 'Authorization' not in request.headers:
@@ -670,23 +668,30 @@ def cdn(data):
 	if profile == None:
 		return e403()
 
-	urlParts = data.split("/")
-	urlRoot = urlParts[0]
-	serverDir = "cdn/"+urlRoot
+	# If the user sends an encoded path, the built-in Flask
+	# handlers don't follow the path. And so a user can access
+	# any file on the server. So we clean up the path here.
+	sanitized_path = ['cdn']
+	data = data.replace("%2F", "/")
 
-	for x in urlParts:
-		if x != urlRoot:
-			if os.path.isdir(serverDir+"/"+x) or os.path.exists(serverDir+"/"+x):
-				serverDir = serverDir+"/"+x
-			else:
-				return "Not Found", 404
-
-	if os.path.isdir(serverDir) or os.path.exists(serverDir):
-		pass
-	else:
+	for directory in data.split("/"):
+		if directory == ".." and len(sanitized_path) > 1:
+			del sanitized_path[-1]
+		elif directory == ".." and len(sanitized_path) == 1:
+			return e404()
+		elif directory == "." or directory == '':
+			pass
+		else:
+			sanitized_path.append(directory)
+	
+	sanitized_path = "/".join(sanitized_path)
+	
+	if not os.path.exists(sanitized_path):
+		return "Not Found", 404
+	if os.path.isdir(sanitized_path):
 		return "Not Found", 404
 	
-	fileExt = serverDir.split(".")[1]
+	fileExt = sanitized_path.split(".")[1]
 	
 	mime = "plain/text"
 
@@ -703,7 +708,7 @@ def cdn(data):
 	if fileExt == ".jpeg" or fileExt == ".jpg":
 		mime = "image/jpeg"
 
-	response = make_response(send_file(serverDir))
+	response = make_response(send_file(sanitized_path))
 	response.headers['Content-Type'] = mime
 	return add_cors_headers(response)
 
