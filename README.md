@@ -65,6 +65,6 @@ pip install -r requirements.txt
 Any contributions to the source code, documentation edits and feature proposals are welcome. If you also want to support the projects, you can also send a donation. The ways of reaching out to us are in the README of the GitHub organization.
 
 # License
-This software is distributed under the GNU General Public License Version 3 on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+This software is distributed under the Server Side Public License Version 1
 
 For more information check the [LICENSE file](https://github.com/opensch/core/blob/master/LICENSE).
