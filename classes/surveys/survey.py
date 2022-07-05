@@ -1,5 +1,7 @@
 from ..database import createMongo
 
+# TODO: REMOVE IT
+
 class Survey(object):
 	"""docstring for """
 	def __init__ (self):

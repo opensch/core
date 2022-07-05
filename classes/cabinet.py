@@ -1,38 +1,30 @@
-from .database import createMongo
 import json
 
 class Cabinet(object):
 	"""docstring for Cabinet"""
-	def __init__(self):
+	def __init__(self, school, dataDict = None):
 		super(Cabinet, self).__init__()
-		client = createMongo()
-		self.db = client.cabinets
-		self.floor = -1
-		self.nearby = []
-		self.number = -1
-		self.photo = ""
+		if dataDict == None:
+			self.floor = -1
+			self.nearby = []
+			self.number = -1
+			self.photo = ""
+		else:
+			if "_id" in dataDict.keys():
+				del dataDict["_id"]
+			self.__dict__ = dataDict
 
-	def fromJSON(data):
-		tempCabinet = Cabinet()
+		self.db = school.database.cabinets
 
-		tempCabinet.floor = data['floor']
-		tempCabinet.nearby = data['nearby']
-		tempCabinet.number = data['number']
-		tempCabinet.photo = data['photo']
-
-		return tempCabinet
 
 	def toJSON(self):
-		jsonTemp = {
-			"floor": self.floor,
-			"nearby": self.nearby,
-			"number": self.number,
-			"photo": self.photo
-		}
-		return jsonTemp
+		dict =  self.__dict__
+		del dict['db']
 
-	def createCabinet(floor, nearby, number, photo = ""):
-		tempCabinet = Cabinet()
+		return dict
+
+	def createCabinet(school, floor, nearby, number, photo = ""):
+		tempCabinet = Cabinet(school)
 		tempCabinet.floor = floor
 		tempCabinet.nearby = nearby
 		tempCabinet.number = number
@@ -40,21 +32,19 @@ class Cabinet(object):
 		if photo != "":
 			tempCabinet.photo = photo
 
-		client = createMongo()
-		db = client.cabinets
+		db = school.database.cabinets
 
 		db.insert_one(tempCabinet.toJSON())
 
-	def find(query, _filter='_id'):
-			client = createMongo()
-			db = client.cabinets
+	def find(school, query, _filter='_id'):
+			db = school.database.cabinets
 
 			if _filter == "floor":
 				c = db.find({"floor": query})
 
 				temp = []
 				for i in c:
-					temp.append(Cabinet.fromJSON(i))
+					temp.append(Cabinet(school, i))
 
 				return temp
 
@@ -65,17 +55,14 @@ class Cabinet(object):
 				if m != 1:
 					return None
 
-				return Cabinet.fromJSON(c[0])
+				return Cabinet(school, c[0])
 
-	def findByFloor(floor):
-		return Cabinet.find(floor, _filter="floor")
+	def findByFloor(school, floor):
+		return Cabinet.find(school, floor, _filter="floor")
 
-	def findByNumber(number):
-		return Cabinet.find(number, _filter="number")
+	def findByNumber(school, number):
+		return Cabinet.find(school, number, _filter="number")
 
 	def removeCabinet(self):
-		client = createMongo()
-		db = client.cabinets
-
 		number = self.number
-		db.delete_one({"number" : number})
+		self.db.delete_one({"number" : number})

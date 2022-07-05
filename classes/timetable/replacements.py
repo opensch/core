@@ -1,47 +1,29 @@
-from ..database import createMongo
 import json 
 import datetime
 
 
 class Replacement ():
-	def __init__ (self):
-		self.date = ""
-		self.classNumber = None
-		self.classLetter = ""
-		self.lessons = []
+	def __init__ (self, school, dataDict = None):
+		if dataDict == None:
+			self.date = ""
+			self.classNumber = None
+			self.classLetter = ""
+			self.lessons = []
+		else:
+			if "_id" in dataDict.keys():
+				del dataDict["_id"]
+			self.__dict__ = dataDict
+
+	def toJSON(self):
+		dict =  self.__dict__
+		del dict['db']
+
+		return dict
 
 
-	def toJSON (self):
-		day = str(self.date.day)
-		month = str(self.date.month)
-		year = str(self.date.year)
-
-		temp_json = {
-			"date": day + "." + month + "." + year,
-			"classNumber": self.classNumber,
-			"classLetter": self.classLetter,
-			"lessons": self.lessons
-		}
-
-		return json.dumps(temp_json)
-
-
-	def fromJSON (json_entry):
-		date = datetime.datetime.strptime(json_entry["date"], '%d.%m.%Y')
-
-		replacement_object = Replacement()
-
-		replacement_object.date = date
-		replacement_object.classNumber = int(json_entry["classNumber"])
-		replacement_object.classLetter = json_entry["classLetter"]
-		replacement_object.lessons = json_entry["lessons"]
-
-		return replacement_object
-
-
-	def create (date, position, classNumber, classLetter, oldLesson, newLesson):
-		timetable_db = createMongo().timetable
-		replacements_db = createMongo().replacements
+	def create (school, date, position, classNumber, classLetter, oldLesson, newLesson):
+		timetable_db = school.database.timetable
+		replacements_db = school.database.replacements
 		
 		day = str(date.day)
 		month = str(date.month)
@@ -85,11 +67,11 @@ class Replacement ():
 			return None
 
 		replacements_db.replace_one({"_id": replacement_entry["_id"]}, replacement_entry)
-		return Replacement.fromJSON(replacement_entry)
+		return Replacement(school, replacement_entry)
 
 	
-	def edit (date, position, classNumber, classLetter, oldLesson, newLesson):
-		replacements_db = createMongo().replacements
+	def edit (school, date, position, classNumber, classLetter, oldLesson, newLesson):
+		replacements_db = school.database.replacements
 
 		day = str(date.day)
 		month = str(date.month)
@@ -120,11 +102,11 @@ class Replacement ():
 		replacements_db.replace_one(replacements_template, replacement_entry)
 
 		del replacement_entry["_id"]
-		return Replacement.fromJSON(replacement_entry)
+		return Replacement(school, replacement_entry)
 
 
-	def delete (date, position, classNumber, classLetter):
-		replacements_db = createMongo().replacements
+	def delete (school, date, position, classNumber, classLetter):
+		replacements_db = school.database.replacements
 
 		day = str(date.day)
 		month = str(date.month)
