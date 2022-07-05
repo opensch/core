@@ -1,4 +1,3 @@
-from ..database import createMongo
 from ..configReader import Config
 
 from ..lesson import Lesson
@@ -10,50 +9,27 @@ class Timetable(object):
 	# Change this parameter wisely as it can lead to crashes later.
 	MAX_LESSON_COUNT = Config().MAX_LESSON_COUNT
 
-	def __init__(self):
-		self.classNumber = -1
-		self.classLetter = ""
-		self.day = -1 # From 0 (Monday) to 6 (Sunday)
-		self.lessons = []
+	def __init__(self, school, dataDict = None):
+		if dataDict == None:
+			self.classNumber = -1
+			self.classLetter = ""
+			self.day = -1 # From 0 (Monday) to 6 (Sunday)
+			self.lessons = []
+		else:
+			if "_id" in dataDict.keys():
+				del dataDict["_id"]
+			self.__dict__ = dataDict
+		self.db = school.database.timetable
+
+	def toJSON(self):
+		dict =  self.__dict__
+		del dict['db']
+
+		return dict
 
 
-	def toJSON (self):
-		l = []
-		for i in self.lessons:
-			if i != "-":
-				l.append(i.toJSON())
-			else:
-				l.append("-")
-
-		return {
-			"classNumber": self.classNumber,
-			"classLetter": self.classLetter,
-			"day": self.day,
-			"lessons": l
-		}
-
-
-	def fromJSON (jsonData):
-		newTimetable = Timetable()
-
-		newTimetable.day = jsonData ["day"]
-		newTimetable.classNumber = jsonData ["classNumber"]
-		newTimetable.classLetter = jsonData ["classLetter"]
-
-		l = []
-		for i in jsonData['lessons']:
-			if i != "-":
-				l.append(Lesson.fromJSON(i))
-			else:
-				l.append("-")
-
-		newTimetable.lessons = l
-
-		return newTimetable
-
-
-	def init (class_number, class_letter, day, lesson_array):
-		database = createMongo().timetable
+	def init (school, class_number, class_letter, day, lesson_array):
+		database = school.database.timetable
 
 		database_request = {
 			"classNumber": int(class_number),
@@ -78,14 +54,12 @@ class Timetable(object):
 		response = database.insert_one(database_request)
 	
 		if response.acknowledged == True:
-			return Timetable.fromJSON(database_request)
+			return Timetable(school, database_request)
 		else:
 			return None
 
 
 	def edit (self, new_lesson_array):
-		database = createMongo().timetable
-
 		database_request = {
 			"classNumber": int(self.classNumber),
 			"classLetter": str(self.classLetter),
@@ -93,7 +67,7 @@ class Timetable(object):
 		}
 
 		# Just to check if the original timetable entry is untouched
-		found_entry = database.find(database_request)
+		found_entry = self.db.find(database_request)
 
 		if found_entry.count() != 1:
 			return None
@@ -109,7 +83,7 @@ class Timetable(object):
 		replacement = database_request
 		replacement["lessons"] = formatted_array 
 
-		response = database.replace_one(query, replacement)
+		response = self.db.replace_one(query, replacement)
 
 		if response.raw_result["ok"] == 1:
 			self.lessons = formatted_array
@@ -119,8 +93,6 @@ class Timetable(object):
 
 
 	def delete (self):
-		database = createMongo().timetable
-		
 		database_request = {
 			"classNumber": int(self.classNumber),
 			"classLetter": str(self.classLetter),
@@ -128,7 +100,7 @@ class Timetable(object):
 		}
 		
 		# Just to check if the original timetable entry is untouched
-		found_entry = database.find(database_request)
+		found_entry = self.db.find(database_request)
 		
 		if found_entry.count() != 1:
 			return None
@@ -136,7 +108,7 @@ class Timetable(object):
 			return None
 
 		query = {"_id", found_entry[0]["_id"]}
-		response = database.delete_one(query)
+		response = self.db.delete_one(query)
 
 		if response.raw_result["ok"] == 1:
 			return True
@@ -144,9 +116,9 @@ class Timetable(object):
 			return None 
 
 
-	def createTimetable(user, date):
-		timetable_db = createMongo().timetable
-		replacements_db = createMongo().replacements
+	def createTimetable(school, user, date):
+		timetable_db = school.database.timetable
+		replacements_db = school.database.replacements
 
 		uL = user.uniqLessons
 		cN = user.classNumber
@@ -238,7 +210,7 @@ class Timetable(object):
 							timetable[m] = "-"
 				m += 1
 
-		t = Timetable()
+		t = Timetable(school)
 		t.classNumber = cN
 		t.classLetter = cL
 		t.day = day

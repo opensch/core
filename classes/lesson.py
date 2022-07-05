@@ -1,73 +1,45 @@
-from .database import createMongo
 from .cabinet import Cabinet
 import json
 
 class Lesson(object):
 	"""docstring for Lesson"""
-	def __init__(self, rec = False):
+	def __init__(self, school, dataDict = None, rec = False):
 		super(Lesson, self).__init__()
 		self.rec = rec
-		if rec == False:
-			client = createMongo()
-			self.db = client.lessons
-		self.replacement = False
-		if rec == False:
-			self.originalLesson = Lesson( True ) # If replacement is true
-		self.id = -1
-		self.title = ""
-		self.teacher = ""
-		self.cabinet = Cabinet()
-		self.classNumber = -1
-		self.classLetter = ""
-
-	def fromJSON(data):
-		tempLesson = Lesson()
-
-		tempLesson.id = data['id']
-		tempLesson.title = data['title']
-		tempLesson.teacher = data['teacher']
-		tempLesson.cabinet = Cabinet.fromJSON(data['cabinet'])
-		tempLesson.classNumber = data['classNumber']
-		tempLesson.classLetter = data['classLetter']
-
-		return tempLesson
+		if dataDict == None:
+			if rec == False:
+				self.db = school.database.lessons
+			self.replacement = False
+			if rec == False:
+				self.originalLesson = Lesson( school, rec = True ) # If replacement is true
+			self.id = -1
+			self.title = ""
+			self.teacher = ""
+			self.cabinet = Cabinet()
+			self.classNumber = -1
+			self.classLetter = ""
+		else:
+			if "_id" in dataDict.keys():
+				del dataDict["_id"]
+			self.__dict__ = dataDict
+			self.db = school.database.lessons
 
 	def toJSON(self):
-		if self.rec == False:
-			jsonTemp = {
-				"replacement": self.replacement,
-				"originalLesson": self.originalLesson.toJSON(),
-				"id": self.id,
-				"title": self.title,
-				"teacher": self.teacher,
-				"cabinet": self.cabinet.toJSON(),
-				"classNumber": self.classNumber,
-				"classLetter": self.classLetter
-			}
-		else:
-			jsonTemp = {
-				"replacement": self.replacement,
-				"id": self.id,
-				"title": self.title,
-				"teacher": self.teacher,
-				"cabinet": self.cabinet.toJSON(),
-				"classNumber": self.classNumber,
-				"classLetter": self.classLetter
-			}	
-		return jsonTemp
+		dict =  self.__dict__
+		del dict['db']
 
-	def createLesson(title, teacher, cabinet, classNumber, classLetter):
-		tempLesson = Lesson()
+		return dict
+
+	def createLesson(school, title, teacher, cabinet, classNumber, classLetter):
+		tempLesson = Lesson(school)
 		tempLesson.title = title
 		tempLesson.teacher = teacher
 		tempLesson.cabinet = cabinet
 		tempLesson.classNumber = classNumber
 		tempLesson.classLetter = classLetter
 
-		client = createMongo()
-		db = client.lessons
 
-		c = db.find().sort( [ ("id", ASCENDING) ] )
+		c = tempLesson.db.find().sort( [ ("id", ASCENDING) ] )
 		lID = 0
 		for i in c:
 			try:
@@ -79,11 +51,10 @@ class Lesson(object):
 
 		tempLesson.id = lID
 
-		db.insert_one(tempLesson.toJSON())
+		tempLesson.db.insert_one(tempLesson.toJSON())
 
-	def find(query, _filter="title"):
-		client = createMongo()
-		db = client.lessons
+	def find(school, query, _filter="title"):
+		db = school.database.lessons
 
 		if _filter == "id":
 			m = db.count_documents({"id": int(query)})
@@ -92,14 +63,14 @@ class Lesson(object):
 			if m != 1:
 				return None
 
-			return Lesson.fromJSON(c[0])
+			return Lesson(school, c[0])
 
 		if _filter == "title":
 			c = db.find({"title": query})
 
 			temp = []
 			for i in c:
-				temp.append(Lesson.fromJSON(i))
+				temp.append(Lesson(school, i))
 
 			return temp
 		if _filter =="cabinet":
@@ -107,31 +78,28 @@ class Lesson(object):
 
 			temp = []
 			for i in c:
-				temp.append(Lesson.fromJSON(i))
+				temp.append(Lesson(school, i))
 			return temp
 		if _filter == "teacher":
 			c = db.find({"teacher": query})
 
 			temp = []
 			for i in c:
-				temp.append(Lesson.fromJSON(i))
+				temp.append(Lesson(school, i))
 
 			return temp
 
-	def findById(_id):
-		return Lesson.find(_id, _filter="id")
+	def findById(school, _id):
+		return Lesson.find(school, _id, _filter="id")
 
-	def findByTitle(title):
-		return Lesson.find(title, _filter="title")
+	def findByTitle(school, title):
+		return Lesson.find(school, title, _filter="title")
 
-	def findByCabinet(cabinet):
-		return Lesson.find(cabinet, _filter="cabinet")
+	def findByCabinet(school, cabinet):
+		return Lesson.find(school, cabinet, _filter="cabinet")
 
-	def findByCabinet(teacher):
-		return Lesson.find(teacher, _filter="teacher")
+	def findByCabinet(school, teacher):
+		return Lesson.find(school, teacher, _filter="teacher")
 
 	def removeLesson(self):
-		client = createMongo()
-		db = client.lessons
-
-		db.delete_one({"id" : self.id})
+		self.db.delete_one({"id" : self.id})
