@@ -12,7 +12,7 @@ class HomeworkObject(object):
 			self.lessonDate = datetime.datetime(1900, 1, 1, 0, 0)
 			self.lessonID = -1
 			self.data = ""
-		else:
+		else: 
 			if "_id" in dataDict.keys():
 				del dataDict["_id"]
 			self.__dict__ = dataDict
@@ -23,6 +23,7 @@ class HomeworkObject(object):
 	def toJSON(self):
 		dict =  self.__dict__
 		del dict['db']
+		del dict["school"]
 
 		return dict
 

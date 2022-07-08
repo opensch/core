@@ -8,6 +8,8 @@ import datetime, base64
 
 from config import Config
 
+from pymongo import MongoClient
+
 app = Flask(__name__)
 
 def startup ():
@@ -131,16 +133,20 @@ def getIDbyToken(token):
 
 
 def findProfileByToken(token):
+	# Insert a proper mechanism for identifying schools here!
+
 	uid = getIDbyToken(token)
 
 	if uid == -1:
 		return None
 
-	return classes.User.findById(uid)
+	return classes.User.findById(school, uid)
 
 
 @app.route("/oauth/auth", methods = [ 'POST',  'OPTIONS' ])
 def auth():
+	# Insert a proper mechanism for identifying schools here!
+
 	if request.method == 'OPTIONS':
 		response = Response("")
 		return add_cors_headers(response)
@@ -153,7 +159,7 @@ def auth():
 		if args['clientID'] != Config().clientID:
 			return e403()
 
-		user = classes.User.findByLogin(args['login'])
+		user = classes.User.findByLogin(school, args['login'])
 
 		if user == None:
 			return e403()
@@ -353,6 +359,8 @@ def passwd():
 
 @app.route("/homework/<date>/<lesson>", methods = [ 'GET', 'POST', 'PUT', 'DELETE', 'OPTIONS' ])
 def homework_handler(date, lesson):
+	# Insert a proper mechanism for identifying schools here!
+
 	if 'Authorization' not in request.headers:
 		return e403()
 
@@ -365,9 +373,9 @@ def homework_handler(date, lesson):
 		date = datetime.datetime.strptime(date, '%d.%m.%Y')
 
 		if lesson != 'all':
-			c = classes.HomeworkObject.retrieveHomework(profile, date, int(lesson))
+			c = classes.HomeworkObject.retrieveHomework(school, profile, date, int(lesson))
 		else:
-			c = classes.HomeworkObject.find(user_uid = profile.uid, lessonDate = date)
+			c = classes.HomeworkObject.find(school, user_uid = profile.uid, lessonDate = date)
 
 		n = []
 		for i in c:
@@ -392,7 +400,7 @@ def homework_handler(date, lesson):
 
 		date = datetime.datetime.strptime(date, '%d.%m.%Y')
 
-		c = classes.HomeworkObject.retrieveHomework(profile, date, int(lesson))
+		c = classes.HomeworkObject.retrieveHomework(school, profile, date, int(lesson))
 		h = None
 
 		for i in c:
@@ -570,6 +578,8 @@ def timetableDate(date):
 
 @app.route("/lesson", methods = ['POST', 'GET', 'OPTIONS'])
 def lesson():
+	# Insert a proper mechanism for identifying schools here!
+
 	if request.method == 'POST':
 		return e405()
 
@@ -590,7 +600,7 @@ def lesson():
 	if 'id' in args:
 		lessonID = int(args['id'])
 
-		foundLessonID = classes.Lesson.findById(lessonID)
+		foundLessonID = classes.Lesson.findById(school, lessonID)
 		if(foundLessonID == None):
 			response = Response(json.dumps({}), status = 200)
 			response.headers['Content-Type'] = 'application/json'
@@ -604,7 +614,9 @@ def lesson():
 
 @app.route("/cabinet", methods = ['POST', 'GET', 'OPTIONS'])
 def cabinet():
-	if request.method == 'POST':
+	# Insert a proper mechanism for identifying schools here!
+
+	if request.method == 'GET':
 		return e405()
 
 	if request.method == 'OPTIONS':
@@ -624,7 +636,7 @@ def cabinet():
 	if 'floor' in args:
 		floorNumber = int(args['floor'])
 
-		foundCabinets = classes.Cabinet.findByFloor(floorNumber)
+		foundCabinets = classes.Cabinet.findByFloor(school, floorNumber)
 		convertedCabinets = []
 
 		for cabinet in foundCabinets:
@@ -640,7 +652,7 @@ def cabinet():
 	elif 'number' in args:
 		classNumber = int(args['number'])
 
-		foundCabinet = classes.Cabinet.findByNumber(classNumber)
+		foundCabinet = classes.Cabinet.findByNumber(school, classNumber)
 
 		if foundCabinet == None:
 			response = Response(json.dumps({}), status = 200)
@@ -747,6 +759,8 @@ def getClasses():
 
 @app.route("/privAPI/getClassTimetable", methods = [ 'GET', 'OPTIONS' ])
 def getClassTimetable():
+	# Insert a proper mechanism for identifying schools here!
+
 	if request.method == 'OPTIONS':
 		response = Response("")
 		return add_cors_headers(response)
@@ -774,7 +788,7 @@ def getClassTimetable():
 		"classLetter": classLetter
 	}
 
-	timetable = classes.createMongo().timetable
+	timetable = school.database.timetable
 	timetable = timetable.find_one(timetable_request)
 
 	if timetable: timetable = timetable ["lessons"]
@@ -798,10 +812,10 @@ def getClassTimetable():
 			elif "," in x:
 				n = x.split(",")
 				for z in n:
-					lesson = classes.Lesson.findById(int(z.replace("I", "")))
+					lesson = classes.Lesson.findById(school, int(z.replace("I", "")))
 					tmp.append(lesson.toJSON())
 			else:
-				lesson = classes.Lesson.findById(int(x.replace("A", "").replace("I", "")))
+				lesson = classes.Lesson.findById(school, int(x.replace("A", "").replace("I", "")))
 				tmp.append(lesson.toJSON())
 			final[i].append(tmp)
 			

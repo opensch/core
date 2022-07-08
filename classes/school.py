@@ -27,11 +27,11 @@ class School:
             db.schools.insert_one(self.toJSON())
             return True
 
-    def findSchool(self):
+    def findSchool():
         db = createMongo(Config().MONGO_DB_PREFIX)
         # check if school not in database
         school = db.schools.find_one({"name": self.name})
         if school is None:
             return False
         else:
-            school = School.fromJSON(school)
+            return School.fromJSON(school)
