@@ -79,7 +79,7 @@ class User(object):
 		c = self.db.update_one( {"uid": self.uid}, {"$set": newUser.toJSON() })
 
 	def find(school, query, _filter = 'login'):
-		db = school.database.client.users
+		db = school.database.users
 
 		if _filter == "all":
 			c = db.find({})

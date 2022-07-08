@@ -1,5 +1,7 @@
 import os
 
+from .school import *
+
 from .cabinet import *
 from .homework import *
 from .lesson import *
