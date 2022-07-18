@@ -1,7 +1,7 @@
 import functions
 
 routingMap = {
-	"": {"method": ["GET"], "function": functions.mainPage},
+	#"": {"method": ["GET"], "function": functions.mainPage},
 	"oauth/auth": {"method": ["POST"], "function": functions.auth},
     "oauth/token": {"method": ["POST"], "function": functions.token_handler},
     "oauth/whoami": {"method": ["GET"], "function": functions.whoami},
@@ -14,7 +14,7 @@ routingMap = {
     "timetable/<date>": {"method": ["GET"], "function": functions.timetableDate},
     "lesson": {"method": ["GET"], "function": functions.lesson},
     "cabinet": {"method": ["GET"], "function": functions.cabinet},
-    "cdn/": {"method": ["GET"], "function": functions.cdn},
+    "cdn/<path:data>": {"method": ["GET"], "function": functions.cdn},
     "privAPI/getClasses": {"method": ["GET"], "function": functions.getClasses},
     "privAPI/getClassesTimetable": {"method": ["GET"], "function": functions.getClassTimetable},
     "privAPI/createReplacement": {"method": ["POST"], "function": functions.createReplacement},
