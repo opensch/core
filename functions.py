@@ -1,4 +1,4 @@
-from flask import Response
+from flask import Response, make_response, send_file
 
 import classes, hashlib, binascii, time, json
 import datetime, base64
@@ -34,11 +34,11 @@ def stringToBool(string):
 		return True
 	raise ValueError("invalid literal for stringToBool()")
 
-def mainPage(request):
+def mainPage(*args):
     return Response("Hello to openSchool!")
 
 
-def timetable(date, request):
+def timetable(request, school, date):
 	if request.method == 'POST':
 		return e405()
 
@@ -76,7 +76,7 @@ def getIDbyToken(token):
 	return -1
 
 
-def findProfileByToken(token):
+def findProfileByToken(token, school):
 	# Insert a proper mechanism for identifying schools here!
 
 	uid = getIDbyToken(token)
@@ -87,7 +87,7 @@ def findProfileByToken(token):
 	return classes.User.findById(school, uid)
 
 
-def auth(request):
+def auth(request, school):
 	# Insert a proper mechanism for identifying schools here!
 
 	if request.method == 'OPTIONS':
@@ -125,7 +125,7 @@ def auth(request):
 	return e400()
 
 
-def token_handler(request):
+def token_handler(request, school):
 	if request.method == "OPTIONS":
 		response = Response("")
 		return response
@@ -159,7 +159,7 @@ def token_handler(request):
 			token_data = json.loads(file.read())
 
 		if token_data["time"] < time.time():
-			os.remove(directory + token)
+			os.remove(directory)
 			return e403()
 		
 		refresh_hash = binascii.b2a_hex(os.urandom(32)).decode()
@@ -193,7 +193,7 @@ def token_handler(request):
 	return response
 
 
-def whoami(request):
+def whoami(request, school):
 	if request.method == 'OPTIONS':
 		response = Response("")
 		return response
@@ -202,7 +202,7 @@ def whoami(request):
 		return e403()
 
 	token = request.headers['Authorization']
-	profile = findProfileByToken(token)
+	profile = findProfileByToken(token, school)
 	if profile != None:
 		profile.password = ""
 		response = Response(json.dumps(profile.toJSON()), status = 200)
@@ -212,12 +212,12 @@ def whoami(request):
 		return e403()
 
 
-def notifications_handler(request):
+def notifications_handler(request, school):
 	if 'Authorization' not in request.headers:
 		return e403()
 
 	token = request.headers['Authorization']
-	profile = findProfileByToken(token)
+	profile = findProfileByToken(token, school)
 	if profile == None:
 		return e403()
 	
@@ -262,7 +262,7 @@ def notifications_handler(request):
 	return response
 	
 
-def passwd(request):
+def passwd(request, school):
 	if request.method == 'GET':
 		return e405()
 	elif request.method == 'OPTIONS':
@@ -273,7 +273,7 @@ def passwd(request):
 		return e403()
 
 	token = request.headers['Authorization']
-	profile = findProfileByToken(token)
+	profile = findProfileByToken(token, school)
 	if profile == None:
 		return e403()
 
@@ -296,14 +296,14 @@ def passwd(request):
 		return e400()
 		
 
-def homework_handler(request, date, lesson):
+def homework_handler(request, school, date, lesson):
 	# Insert a proper mechanism for identifying schools here!
 
 	if 'Authorization' not in request.headers:
 		return e403()
 
 	token = request.headers['Authorization']
-	profile = findProfileByToken(token)
+	profile = findProfileByToken(token, school)
 	if profile == None:
 		return e403()
 	
@@ -332,7 +332,7 @@ def homework_handler(request, date, lesson):
 			return e400()
 
 		token = request.headers['Authorization']
-		profile = findProfileByToken(token)
+		profile = findProfileByToken(token, school)
 		if profile == None:
 			return e403()
 
@@ -366,13 +366,13 @@ def homework_handler(request, date, lesson):
 			return e400()
 
 		token = request.headers['Authorization']
-		profile = findProfileByToken(token)
+		profile = findProfileByToken(token, school)
 		if profile == None:
 			return e403()
 
 		date = datetime.datetime.strptime(date, '%d.%m.%Y')
 
-		n = classes.HomeworkObject.createHomework(profile, date, int(lesson), args['content'])
+		n = classes.HomeworkObject.createHomework(school, profile, date, int(lesson), args['content'])
 
 		response = Response("", status = 200)
 
@@ -383,13 +383,13 @@ def homework_handler(request, date, lesson):
 			return e400()
 
 		token = request.headers['Authorization']
-		profile = findProfileByToken(token)
+		profile = findProfileByToken(token, school)
 		if profile == None:
 			return e403()
 
 		date = datetime.datetime.strptime(args['date'], '%d.%m.%Y')
 
-		c = classes.HomeworkObject.retrieveHomework(profile, date, int(args['lesson']))
+		c = classes.HomeworkObject.retrieveHomework(school, profile, date, int(args['lesson']))
 		h = None
 
 		for i in c:
@@ -407,7 +407,7 @@ def homework_handler(request, date, lesson):
 	return response
 
 
-def getTime(request):
+def getTime(request, school):
 	if request.method == 'OPTIONS':
 		response = Response("")
 		return response
@@ -416,7 +416,7 @@ def getTime(request):
 		return e403()
 
 	token = request.headers['Authorization']
-	profile = findProfileByToken(token)
+	profile = findProfileByToken(token, school)
 	if profile == None:
 		return e403()
 
@@ -440,7 +440,7 @@ def getTime(request):
 	return ret
 
 
-def getTimes(request):
+def getTimes(request, school):
 	if request.method == 'OPTIONS':
 		response = Response("")
 		return response
@@ -449,7 +449,7 @@ def getTimes(request):
 		return e403()
 
 	token = request.headers['Authorization']
-	profile = findProfileByToken(token)
+	profile = findProfileByToken(token, school)
 	if profile == None:
 		return e403()
 
@@ -459,7 +459,6 @@ def getTimes(request):
 	timeObj = timeData['default']
 	if str(profile.classNumber) in timeData:
 		timeObj = timeData[str(profile.classNumber)]
-	print(timeObj)
 
 	try:
 		ret = Response(json.dumps(timeObj), status = 200)
@@ -470,7 +469,7 @@ def getTimes(request):
 	return ret
 	
 
-def addToken(request):
+def addToken(request, school):
 	if request.method == 'GET':
 		return e405()
 
@@ -482,7 +481,7 @@ def addToken(request):
 		return e403()
 
 	token = request.headers['Authorization']
-	profile = findProfileByToken(token)
+	profile = findProfileByToken(token, school)
 	if profile == None:
 		return e403()
 
@@ -500,16 +499,16 @@ def addToken(request):
 		return e400()
 
 
-def timetableToday(request):
-	return timetable(datetime.datetime.now(), request)
+def timetableToday(request, school):
+	return timetable(datetime.datetime.now(), school, request)
 
 
-def timetableDate(request, date):
+def timetableDate(request, school, date):
 	date = datetime.datetime.strptime(date, '%d.%m.%Y')
-	return timetable(date, request)
+	return timetable(date, school, request)
 
 
-def lesson(request):
+def lesson(request, school):
 	# Insert a proper mechanism for identifying schools here!
 
 	if request.method == 'POST':
@@ -523,7 +522,7 @@ def lesson(request):
 		return e403()
 
 	token = request.headers['Authorization']
-	profile = findProfileByToken(token)
+	profile = findProfileByToken(token, school)
 	if profile == None:
 		return e403()
 
@@ -544,7 +543,7 @@ def lesson(request):
 	return e400()
 
 
-def cabinet(request):
+def cabinet(request, school):
 	# Insert a proper mechanism for identifying schools here!
 
 	if request.method == 'GET':
@@ -558,7 +557,7 @@ def cabinet(request):
 		return e403()
 
 	token = request.headers['Authorization']
-	profile = findProfileByToken(token)
+	profile = findProfileByToken(token, school)
 	if profile == None:
 		return e403()
 
@@ -597,7 +596,7 @@ def cabinet(request):
 	return e400()
 
 
-def cdn(request, data):
+def cdn(request, school, data):
 	if request.method == 'OPTIONS':
 		response = Response("")
 		return response
@@ -654,7 +653,7 @@ def cdn(request, data):
 	response.headers['Content-Type'] = mime
 	return response
 
-def getClasses(request):
+def getClasses(request, school):
 	if request.method == 'OPTIONS':
 		response = Response("")
 		return response
@@ -663,7 +662,7 @@ def getClasses(request):
 		return e403()
 
 	token = request.headers['Authorization']
-	profile = findProfileByToken(token)
+	profile = findProfileByToken(token, school)
 	if profile == None:
 		return e403()
 
@@ -671,14 +670,14 @@ def getClasses(request):
 		response = Response("We're ready to pay you 1 dollar because you found this method. Next stage is to crack this. Good Luck!", status = 403)
 		return response
 
-	timetable = classes.createMongo().timetable
+	timetable = school.database.timetable
 
 	class_numbers = timetable.distinct("classNumber")
 	class_letters = timetable.distinct("classLetter")
 
 	classes = []
 
-	for class_number in class_numbers:
+	for classNumber in class_numbers:
 		for classLetter in class_letters:
 			classes.append({"classNumber": classNumber, "classLetter": classLetter})
 
@@ -686,7 +685,7 @@ def getClasses(request):
 	response.headers['Content-Type'] = 'application/json'
 	return response
 
-def getClassTimetable(request):
+def getClassTimetable(request, school):
 	# Insert a proper mechanism for identifying schools here!
 
 	if request.method == 'OPTIONS':
@@ -697,7 +696,7 @@ def getClassTimetable(request):
 		return e403()
 
 	token = request.headers['Authorization']
-	profile = findProfileByToken(token)
+	profile = findProfileByToken(token, school)
 	if profile == None:
 		return e403()
 
@@ -752,7 +751,7 @@ def getClassTimetable(request):
 	return response
 
 
-def createReplacement (request):
+def createReplacement (request, school):
 	if request.method == 'OPTIONS':
 		response = Response("")
 		return response
@@ -761,7 +760,7 @@ def createReplacement (request):
 		return e403()
 	
 	token = request.headers['Authorization']
-	profile = findProfileByToken(token)
+	profile = findProfileByToken(token, school)
 	if profile == None:
 		return e403()
 	
@@ -779,12 +778,12 @@ def createReplacement (request):
 	class_letter = request_data["classLetter"]
 
 	old_lesson = request_data["oldLesson"] 
-	old_lesson = classes.Lesson.fromJSON(old_lesson)
+	old_lesson = classes.Lesson(school, dataDict=old_lesson)
 
 	new_lesson = request_data["newLesson"] 
-	new_lesson = classes.Lesson.fromJSON(new_lesson)
+	new_lesson = classes.Lesson(school, dataDict=new_lesson)
 
-	replacement = classes.Replacement.create(date, position, class_number, class_letter, old_lesson, new_lesson) 
+	replacement = classes.Replacement.create(school, date, position, class_number, class_letter, old_lesson, new_lesson) 
 
 	if replacement:
 		response = Response('', status = 200)
@@ -794,7 +793,7 @@ def createReplacement (request):
 	return response
 
 
-def editReplacement (request):
+def editReplacement (request, school):
 	if request.method == 'OPTIONS':
 		response = Response("")
 		return response
@@ -803,7 +802,7 @@ def editReplacement (request):
 		return e403()
 	
 	token = request.headers['Authorization']
-	profile = findProfileByToken(token)
+	profile = findProfileByToken(token, school)
 	if profile == None:
 		return e403()
 	
@@ -821,12 +820,12 @@ def editReplacement (request):
 	class_letter = request_data["classLetter"]
 
 	old_lesson = request_data["oldLesson"] 
-	old_lesson = classes.Lesson.fromJSON(old_lesson)
+	old_lesson = classes.Lesson(school, dataDict=old_lesson)
 
 	new_lesson = request_data["newLesson"] 
-	new_lesson = classes.Lesson.fromJSON(new_lesson)
+	new_lesson = classes.Lesson(school, dataDict=new_lesson)
 
-	replacement = classes.Replacement.edit(date, position, class_number, class_letter, old_lesson, new_lesson)
+	replacement = classes.Replacement.edit(school, date, position, class_number, class_letter, old_lesson, new_lesson)
 	
 	if replacement:
 		response = Response('', status = 200)
@@ -838,7 +837,7 @@ def editReplacement (request):
 def getReplacements():
     return "who am i? why do i exist?"
 
-def deleteReplacement (request):
+def deleteReplacement (request, school):
 	if request.method == 'OPTIONS':
 		response = Response("")
 		return response
@@ -847,7 +846,7 @@ def deleteReplacement (request):
 		return e403()
 	
 	token = request.headers['Authorization']
-	profile = findProfileByToken(token)
+	profile = findProfileByToken(token, school)
 	if profile == None:
 		return e403()
 	
@@ -864,13 +863,13 @@ def deleteReplacement (request):
 	class_number = request_data["classNumber"] 
 	class_letter = request_data["classLetter"]
 	
-	classes.Replacement.delete(date, position, class_number, class_letter)  
+	classes.Replacement.delete(school, date, position, class_number, class_letter)  
 	
 	response = Response('', status = 200)
 	return response
 
 
-def createNews(request):
+def createNews(request, school):
 	if request.method == 'OPTIONS':
 		response = Response("")
 		return response
@@ -904,7 +903,7 @@ def createNews(request):
 	return response
 
 
-def editNews(request):
+def editNews(request, school):
 	if request.method == 'OPTIONS':
 		response = Response("")
 		return response
@@ -937,7 +936,7 @@ def editNews(request):
 	return response
 
 
-def deleteNews(request):
+def deleteNews(request, school):
 	if request.method == 'OPTIONS':
 		response = Response("")
 		return response
@@ -966,7 +965,3 @@ def deleteNews(request):
 		response = Response("", 410)
 
 	return response
-
-
-if __name__ == "__main__":
-	startup()

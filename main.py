@@ -1,3 +1,4 @@
+from calendar import c
 import json
 from flask import Flask, Response, request
 from routes import routingMap
@@ -61,15 +62,46 @@ def addHeaders(response):
 	return response
 
 def findPath(path):
+	path = path.split("/")
 	for i in routingMap.keys():
-		path = re.sub('<.*?>', '', i).replace("//", "/")
-		print(path)
-		if i in path:
-			if path != "" and i == "":
-				continue
-			#return routingMap[i]
-	
+		checkPath = re.sub('<.*?>', '', i)
+
+		if checkPath == '/'.join(path):
+			return routingMap[i], i
+
+		pathCheck = path.copy()
+		for x in reversed(range(len(path))):
+			if "<path:" in i:
+				checkPath = checkPath.replace("//", "")
+				del pathCheck[x]
+				if len(pathCheck) == 1:
+					pathCheck.append('')
+			else:
+				pathCheck[x] = ""
+
+			if checkPath == '/'.join(pathCheck):
+				return routingMap[i], i
+
 	return None
+
+def parseArgs(path, routePath):
+	# timetable/<date>
+	# timetable/1
+
+	path = path.split("/")
+	routePath = routePath.split("/")
+
+	args = []
+	for i in range(len(routePath)):
+		routePath[i] = routePath[i].replace("<path:", "!PATH")
+		
+		if "<" in routePath[i]:
+			args.append(path[i])
+		
+		if "!PATH" in routePath[i]:
+			args.append( '/'.join(path[i:]) )
+
+	return args
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
@@ -79,13 +111,15 @@ def route(path):
 
 	response = e404()
 
-	route = findPath(path)
+	route, routePath = findPath(path)
 	if route != None:
 		if request.method in route['method']:
-			response = route['function'](request)
+			school = None
+			response = route['function'](request, school, *parseArgs(path, routePath))
 		else:
 			response = e400()
 
 	return addHeaders(response)
 
-app.run(host = "0.0.0.0", debug = True)
+if __name__ == "__main__":
+	startup()
