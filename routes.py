@@ -17,6 +17,15 @@ routingMap = {
     "cdn/<path:data>": {"method": ["GET"], "function": functions.cdn},
     "privAPI/getClasses": {"method": ["GET"], "function": functions.getClasses},
     "privAPI/getClassesTimetable": {"method": ["GET"], "function": functions.getClassTimetable},
+    # TODO: create cabinet
+    # TODO: list cabinets
+    # TODO: remove cabinet
+    # TODO: create lesson
+    # TODO: list lessons
+    # TODO: remove lessons
+    # TODO: create timetable for day
+    # TODO: edit timetable for day
+    # TODO: remove timetable for day
     "privAPI/createReplacement": {"method": ["POST"], "function": functions.createReplacement},
     "privAPI/editReplacement": {"method": ["POST"], "function": functions.editReplacement},
     "privAPI/deleteReplacement": {"method": ["GET"], "function": functions.deleteReplacement},

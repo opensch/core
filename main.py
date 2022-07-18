@@ -1,6 +1,8 @@
 from flask import Flask, Response, request
 from routes import routingMap
+from classes import School
 from config import Config
+import tldextract
 import os, re
 import json
 
@@ -109,7 +111,30 @@ def route(path):
 
 	response = e404()
 
+	if path == "favicon.ico":
+		return "", 404
+
+
 	route, routePath = findPath(path)
+
+	if route == None:
+		schoolName = path.split("/")[0]
+
+		path = path.split("/")
+		del path[0]
+		path = '/'.join(path)
+
+		route, routePath = findPath(path)
+	else:
+		schoolName = tldextract.extract(request.url).subdomain
+	
+	if schoolName == "":
+		return "No school specified", 400
+	else:
+		school = School.findSchoolByDomain(schoolName)
+		if school == False:
+			return "School not found", 404
+
 	if route != None:
 		if request.method in route['method']:
 			school = None # TODO: SCHOOL FIND MECHANISM

@@ -35,3 +35,12 @@ class School:
             return False
         else:
             return School.fromJSON(school)
+
+    def findSchoolByDomain(domain):
+        db = createMongo(Config().MONGO_DB_PREFIX, False)
+        # check if school not in database
+        school = db.schools.find_one({"domain": domain})
+        if school is None:
+            return False
+        else:
+            return School.fromJSON(school)
