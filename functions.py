@@ -90,10 +90,6 @@ def findProfileByToken(token, school):
 def auth(request, school):
 	# Insert a proper mechanism for identifying schools here!
 
-	if request.method == 'OPTIONS':
-		response = Response("")
-		return response
-
 	args = request.form
 
 	if 'login' in args and 'password' in args and 'clientID' in args:
@@ -126,10 +122,6 @@ def auth(request, school):
 
 
 def token_handler(request, school):
-	if request.method == "OPTIONS":
-		response = Response("")
-		return response
-
 	arguments = request.form
 	
 	if "clientSecret" not in arguments:
@@ -400,9 +392,6 @@ def homework_handler(request, school, date, lesson):
 		h.deleteHomework()
 
 		response = Response("", status = 200)
-		
-	elif request.method == "OPTIONS":
-		response = Response("")
 
 	return response
 
@@ -500,12 +489,12 @@ def addToken(request, school):
 
 
 def timetableToday(request, school):
-	return timetable(datetime.datetime.now(), school, request)
+	return timetable(request, datetime.datetime.now(), school)
 
 
 def timetableDate(request, school, date):
 	date = datetime.datetime.strptime(date, '%d.%m.%Y')
-	return timetable(date, school, request)
+	return timetable(request, date, school)
 
 
 def lesson(request, school):

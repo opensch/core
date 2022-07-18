@@ -1,11 +1,10 @@
-from calendar import c
-import json
 from flask import Flask, Response, request
 from routes import routingMap
 from config import Config
 import os, re
+import json
 
-from functions import e400, e403, e404, e405
+from functions import e400, e404
 
 if os.getenv("KUBERNETES") == "1":
 	import kubernetesConfig
@@ -82,12 +81,9 @@ def findPath(path):
 			if checkPath == '/'.join(pathCheck):
 				return routingMap[i], i
 
-	return None
+	return None, None
 
 def parseArgs(path, routePath):
-	# timetable/<date>
-	# timetable/1
-
 	path = path.split("/")
 	routePath = routePath.split("/")
 
@@ -103,8 +99,10 @@ def parseArgs(path, routePath):
 
 	return args
 
+HTTP_METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'CONNECT', 'OPTIONS', 'TRACE', 'PATCH']
+
 @app.route('/', defaults={'path': ''})
-@app.route('/<path:path>')
+@app.route('/<path:path>', methods = HTTP_METHODS)
 def route(path):
 	if request.method == "OPTIONS":
 		return addHeaders(Response(""))
@@ -114,7 +112,7 @@ def route(path):
 	route, routePath = findPath(path)
 	if route != None:
 		if request.method in route['method']:
-			school = None
+			school = None # TODO: SCHOOL FIND MECHANISM
 			response = route['function'](request, school, *parseArgs(path, routePath))
 		else:
 			response = e400()
