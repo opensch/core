@@ -137,7 +137,6 @@ def route(path):
 
 	if route != None:
 		if request.method in route['method']:
-			school = None # TODO: SCHOOL FIND MECHANISM
 			response = route['function'](request, school, *parseArgs(path, routePath))
 		else:
 			response = e400()

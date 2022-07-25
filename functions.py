@@ -35,16 +35,12 @@ def stringToBool(string):
 	raise ValueError("invalid literal for stringToBool()")
 
 def mainPage(*args):
-    return Response("Hello to openSchool!")
+	return Response("Hello to openSchool!")
 
 
 def timetable(request, school, date):
 	if request.method == 'POST':
 		return e405()
-
-	if request.method == 'OPTIONS':
-		response = Response("")
-		return response
 
 	if 'Authorization' not in request.headers:
 		return e403()
@@ -186,10 +182,6 @@ def token_handler(request, school):
 
 
 def whoami(request, school):
-	if request.method == 'OPTIONS':
-		response = Response("")
-		return response
-
 	if 'Authorization' not in request.headers:
 		return e403()
 
@@ -247,9 +239,6 @@ def notifications_handler(request, school):
 
 		response = Response(json.dumps({"status": "ok", "c": profile.notifParams}), status = 200)
 		response.headers['Content-Type'] = 'application/json'
-	
-	elif request.method == 'OPTIONS':
-		response = Response("")
 
 	return response
 	
@@ -257,9 +246,6 @@ def notifications_handler(request, school):
 def passwd(request, school):
 	if request.method == 'GET':
 		return e405()
-	elif request.method == 'OPTIONS':
-		response = Response("")
-		return response
 
 	if 'Authorization' not in request.headers:
 		return e403()
@@ -397,10 +383,6 @@ def homework_handler(request, school, date, lesson):
 
 
 def getTime(request, school):
-	if request.method == 'OPTIONS':
-		response = Response("")
-		return response
-
 	if 'Authorization' not in request.headers:
 		return e403()
 
@@ -430,10 +412,6 @@ def getTime(request, school):
 
 
 def getTimes(request, school):
-	if request.method == 'OPTIONS':
-		response = Response("")
-		return response
-
 	if 'Authorization' not in request.headers:
 		return e403()
 
@@ -461,10 +439,6 @@ def getTimes(request, school):
 def addToken(request, school):
 	if request.method == 'GET':
 		return e405()
-
-	if request.method == 'OPTIONS':
-		response = Response("")
-		return response
 
 	if 'Authorization' not in request.headers:
 		return e403()
@@ -503,10 +477,6 @@ def lesson(request, school):
 	if request.method == 'POST':
 		return e405()
 
-	if request.method == 'OPTIONS':
-		response = Response("")
-		return response
-
 	if 'Authorization' not in request.headers:
 		return e403()
 
@@ -537,10 +507,6 @@ def cabinet(request, school):
 
 	if request.method == 'GET':
 		return e405()
-
-	if request.method == 'OPTIONS':
-		response = Response("")
-		return response
 
 	if 'Authorization' not in request.headers:
 		return e403()
@@ -586,10 +552,6 @@ def cabinet(request, school):
 
 
 def cdn(request, school, data):
-	if request.method == 'OPTIONS':
-		response = Response("")
-		return response
-
 	if 'Authorization' not in request.headers:
 		return e403()
 
@@ -643,10 +605,6 @@ def cdn(request, school, data):
 	return response
 
 def getClasses(request, school):
-	if request.method == 'OPTIONS':
-		response = Response("")
-		return response
-
 	if 'Authorization' not in request.headers:
 		return e403()
 
@@ -675,12 +633,6 @@ def getClasses(request, school):
 	return response
 
 def getClassTimetable(request, school):
-	# Insert a proper mechanism for identifying schools here!
-
-	if request.method == 'OPTIONS':
-		response = Response("")
-		return response
-
 	if 'Authorization' not in request.headers:
 		return e403()
 
@@ -739,12 +691,91 @@ def getClassTimetable(request, school):
 	response.headers['Content-Type'] = 'application/json'
 	return response
 
+def priv_api_cabinet_handler(request, school):
+	if 'Authorization' not in request.headers:
+		return e403()
+
+	token = request.headers['Authorization']
+	profile = findProfileByToken(token, school)
+	if profile == None:
+		return e403()
+
+	if 'role' not in profile.flags or profile.flags['role'] == 0:
+		return Response("Insufficient rights.", status = 403)
+
+	# If the request uses the GET method, we give a list
+	# of cabinets, which meet the criteria
+	if request.method == "GET":
+		floor = request.args.get("floor")
+		number = request.args.get("number")
+
+		if number != None and number.isdigit():
+			search_result = classes.Cabinet.findByNumber(school, int(number))
+		elif floor != None and floor.isdigit():
+			search_result = classes.Cabinet.findByFloor(school, int(floor))
+		else:
+			return e400()
+		
+		# Converting the found Cabinet objects into dictionaries
+		if type(search_result) == list:
+			for index in range(len(search_result)):
+				search_result[index] = search_result[index].toJSON()
+		elif type(search_result) == classes.Cabinet:
+			search_result = search_result.toJSON()
+		else:
+			return e404()
+		
+		response = Response(json.dumps(search_result), status = 200)
+		response.headers["Content-Type"] = "application/json"
+	
+	# This HTTP method indicates the creation of a new cabinet
+	# in the database
+	elif request.method == "POST":
+		parameters = request.json
+
+		# Are all needed parameters in the request?
+		for p in ["floor", "nearby", "number"]:
+			if p not in parameters.keys():
+				return e400()
+			if p == "nearby" and type(parameters[p]) != list:
+				return e400()
+
+		floor = int(parameters["floor"])
+		number = int(parameters["number"])
+		nearby = [int(digit) for digit in parameters["nearby"]]
+
+		# Checking in advance that there's no cabinet with the given number
+		if classes.Cabinet.findByNumber(school, number) != None:
+			return e400()
+
+		# Calling the Classes library and creating a new Cabinet object
+		classes.Cabinet.createCabinet(school, floor, nearby, number)
+
+		response = Response("Success", status = 200)
+	
+	# And this is in case the user wants to delete a particular cabinet
+	elif request.method == "DELETE":
+		parameters = request.form
+
+		# Checking the number value if it is correct
+		if "number" not in parameters.keys():
+			return e400()
+		if parameters["number"].isdigit() == False:
+			return e400()
+		
+		number = int(parameters["number"])
+		cabinet_object = classes.Cabinet.findByNumber(school, number)
+
+		if cabinet_object == None:
+			return e400()
+
+		cabinet_object.removeCabinet()
+
+		response = Response("Success", status = 200)
+	
+	return response
 
 def createReplacement (request, school):
-	if request.method == 'OPTIONS':
-		response = Response("")
-		return response
-	
 	if 'Authorization' not in request.headers:
 		return e403()
 	
@@ -783,10 +814,6 @@ def createReplacement (request, school):
 
 
 def editReplacement (request, school):
-	if request.method == 'OPTIONS':
-		response = Response("")
-		return response
-	
 	if 'Authorization' not in request.headers:
 		return e403()
 	
@@ -824,13 +851,9 @@ def editReplacement (request, school):
 	return response
 
 def getReplacements():
-    return "who am i? why do i exist?"
+	return "who am i? why do i exist?"
 
 def deleteReplacement (request, school):
-	if request.method == 'OPTIONS':
-		response = Response("")
-		return response
-	
 	if 'Authorization' not in request.headers:
 		return e403()
 	
@@ -859,10 +882,6 @@ def deleteReplacement (request, school):
 
 
 def createNews(request, school):
-	if request.method == 'OPTIONS':
-		response = Response("")
-		return response
-	
 	if 'Authorization' not in request.headers:
 		return e403()
 	
@@ -893,10 +912,6 @@ def createNews(request, school):
 
 
 def editNews(request, school):
-	if request.method == 'OPTIONS':
-		response = Response("")
-		return response
-	
 	if 'Authorization' not in request.headers:
 		return e403()
 	
@@ -926,10 +941,6 @@ def editNews(request, school):
 
 
 def deleteNews(request, school):
-	if request.method == 'OPTIONS':
-		response = Response("")
-		return response
-	
 	if 'Authorization' not in request.headers:
 		return e403()
 	

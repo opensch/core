@@ -17,9 +17,7 @@ routingMap = {
     "cdn/<path:data>": {"method": ["GET"], "function": functions.cdn},
     "privAPI/getClasses": {"method": ["GET"], "function": functions.getClasses},
     "privAPI/getClassesTimetable": {"method": ["GET"], "function": functions.getClassTimetable},
-    # TODO: create cabinet
-    # TODO: list cabinets
-    # TODO: remove cabinet
+    "privAPI/cabinet": {"method": ["GET", "POST", "DELETE"], "function": functions.priv_api_cabinet_handler},
     # TODO: create lesson
     # TODO: list lessons
     # TODO: remove lessons
