@@ -18,12 +18,11 @@ routingMap = {
     "privAPI/getClasses": {"method": ["GET"], "function": functions.getClasses},
     "privAPI/getClassesTimetable": {"method": ["GET"], "function": functions.getClassTimetable},
     "privAPI/cabinet": {"method": ["GET", "POST", "DELETE"], "function": functions.priv_api_cabinet_handler},
-    # TODO: create lesson
-    # TODO: list lessons
-    # TODO: remove lessons
-    # TODO: create timetable for day
+    "privAPI/lesson": {"method": ["GET", "POST", "DELETE"], "function": functions.priv_api_lesson_handler},
+    # TODO: create timetable for day 
     # TODO: edit timetable for day
     # TODO: remove timetable for day
+    # (which I am NOT going to do, as I can't stand the spagetti shitcode that we have)
     "privAPI/createReplacement": {"method": ["POST"], "function": functions.createReplacement},
     "privAPI/editReplacement": {"method": ["POST"], "function": functions.editReplacement},
     "privAPI/deleteReplacement": {"method": ["GET"], "function": functions.deleteReplacement},

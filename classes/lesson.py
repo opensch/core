@@ -16,29 +16,38 @@ class Lesson(object):
 			self.id = -1
 			self.title = ""
 			self.teacher = ""
-			self.cabinet = Cabinet()
+			self.cabinet = None
 			self.classNumber = -1
 			self.classLetter = ""
 		else:
 			if "_id" in dataDict.keys():
 				del dataDict["_id"]
+			if "originalLesson" not in dataDict.keys():
+				dataDict["originalLesson"] = Lesson(school)
+
 			self.__dict__ = dataDict
 			self.db = school.database.lessons
 
 	def toJSON(self):
-		dict =  self.__dict__
-		del dict['db']
+		dict =  self.__dict__.copy()
+		
+		if "originalLesson" in dict.keys():
+			dict["originalLesson"] = dict["originalLesson"].toJSON()
+		if "db" in dict.keys():
+			del dict['db']
 
 		return dict
 
 	def createLesson(school, title, teacher, cabinet, classNumber, classLetter):
-		tempLesson = Lesson(school)
-		tempLesson.title = title
-		tempLesson.teacher = teacher
-		tempLesson.cabinet = cabinet
-		tempLesson.classNumber = classNumber
-		tempLesson.classLetter = classLetter
+		tempLesson = {
+			"title": title,
+			"teacher": teacher,
+			"cabinet": cabinet,
+			"classNumber": classNumber,
+			"classLetter": classLetter,
+		}
 
+		tempLesson = Lesson(school, tempLesson)
 
 		c = tempLesson.db.find().sort( [ ("id", ASCENDING) ] )
 		lID = 0
@@ -51,7 +60,8 @@ class Lesson(object):
 		lID = lID + 1
 
 		tempLesson.id = lID
-
+		
+		print(tempLesson.toJSON()) 
 		tempLesson.db.insert_one(tempLesson.toJSON())
 
 	def find(school, query, _filter="title"):
