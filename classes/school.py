@@ -3,28 +3,34 @@ from .configReader import Config
 import os
 import json
 
-class School:
+class School():
     def __init__(self):
         self.name = ""
-        self.database = createMongo(self.name)
+        self.database = None
         self.domain = ""
         self.email = ""
 
     def toJSON(self):
-        return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True, indent=4)
+        dictionary = self.__dict__.copy()
+        del dictionary["database"]
+        return json.dumps(dictionary, sort_keys=True, indent=4)
+
     def fromJSON(json):
         school = School()
         school.name = json["name"]
         school.domain = json["domain"]
+        school.database = createMongo(school.domain, prefix = False)
         school.email = json["email"]
 
         return school
 
     def createSchool(self):
-        db = createMongo(Config().MONGO_DB_PREFIX)
+        db = createMongo(Config().MONGO_DB_PREFIX, prefix = False)
         # check if school not in database
         if db.schools.find_one({"name": self.name}) is None:
-            db.schools.insert_one(self.toJSON())
+            dictionary_object = self.__dict__.copy()
+            del dictionary_object["database"]
+            db.schools.insert_one(dictionary_object)
             return True
 
     def findSchool(name):
