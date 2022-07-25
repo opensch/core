@@ -731,45 +731,144 @@ def priv_api_cabinet_handler(request, school):
 	# This HTTP method indicates the creation of a new cabinet
 	# in the database
 	elif request.method == "POST":
-		parameters = request.json
+		data = request.json
 
-		# Are all needed parameters in the request?
+		# Are all needed data in the request?
 		for p in ["floor", "nearby", "number"]:
-			if p not in parameters.keys():
+			if p not in data.keys():
 				return e400()
-			if p == "nearby" and type(parameters[p]) != list:
+			if p == "nearby" and type(data[p]) != list:
 				return e400()
-
-		floor = int(parameters["floor"])
-		number = int(parameters["number"])
-		nearby = [int(digit) for digit in parameters["nearby"]]
 
 		# Checking in advance that there's no cabinet with the given number
 		if classes.Cabinet.findByNumber(school, number) != None:
 			return e400()
 
 		# Calling the Classes library and creating a new Cabinet object
-		classes.Cabinet.createCabinet(school, floor, nearby, number)
+		classes.Cabinet.createCabinet(
+			school = school,
+			floor = int(data["floor"]),
+			nearby = [int(digit) for digit in data["nearby"]],
+			number = int(data["number"])
+		)
 
 		response = Response("Success", status = 200)
 	
 	# And this is in case the user wants to delete a particular cabinet
 	elif request.method == "DELETE":
-		parameters = request.form
+		data = request.form
 
 		# Checking the number value if it is correct
-		if "number" not in parameters.keys():
+		if "number" not in data.keys():
 			return e400()
-		if parameters["number"].isdigit() == False:
+		if data["number"].isdigit() == False:
 			return e400()
 		
-		number = int(parameters["number"])
+		number = int(data["number"])
 		cabinet_object = classes.Cabinet.findByNumber(school, number)
 
 		if cabinet_object == None:
 			return e400()
 
 		cabinet_object.removeCabinet()
+
+		response = Response("Success", status = 200)
+	
+	return response
+
+def priv_api_lesson_handler(request, school):
+	if 'Authorization' not in request.headers:
+		return e403()
+
+	token = request.headers['Authorization']
+	profile = findProfileByToken(token, school)
+	if profile == None:
+		return e403()
+
+	if 'role' not in profile.flags or profile.flags['role'] == 0:
+		return Response("Insufficient rights.", status = 403)
+	
+	# The GET method is responsible for searching for a lesson
+	# with given data
+	if request.method == "GET":
+		id = request.args.get("id")
+		title = request.args.get("title")
+		cabinet = request.args.get("cabinet")
+		teacher = request.args.get("teacher")
+
+		if id != None and id.isdigit():
+			search_result = classes.Lesson.findById(school, int(id))
+		elif title != None:
+			search_result = classes.Lesson.findByTitle(school, title)
+		elif teacher != None:
+			search_result = classes.Lesson.findByTeacher(school, teacher)
+		elif cabinet != None and cabinet.isdigit():
+			search_result = classses.Lesson.findByCabinet(school, int(cabinet))
+		else:
+			return e400()
+		
+		print(search_result)
+
+		# Converting the found Cabinet objects into dictionaries
+		if type(search_result) == list:
+			for index in range(len(search_result)):
+				search_result[index] = search_result[index].toJSON()
+		elif type(search_result) == classes.Lesson:
+			search_result = search_result.toJSON()
+		else:
+			return e404()
+		
+		response = Response(json.dumps(search_result), status = 200)
+		response.headers["Content-Type"] = "application/json"
+	
+	# This HTTP method indicates the creation of a new lesson in the database
+	elif request.method == "POST":
+		data = request.json
+
+		# Are all needed data in the request?
+		for p in ["title", "teacher", "cabinet", "classNumber", "classLetter"]:
+			if p not in data.keys():
+				return e400()
+			
+			if p == "cabinet" and type(data[p]) != int:
+				return e400()
+			elif p == "classNumber" and type(data[p]) != int:
+				return e400()
+
+		# Checking if the provided cabinet exists
+		cabinet = classes.Cabinet.findByNumber(school, int(data["cabinet"]))
+		if cabinet == None:
+			return e400()
+
+		# Calling the Classes library and creating a new Lesson object
+		classes.Lesson.createLesson(
+			school = school,
+			title = data["title"],
+			teacher = data["teacher"],
+			cabinet = cabinet.toJSON(),
+			classNumber = int(data["classNumber"]),
+			classLetter = data["classLetter"]
+		)
+
+		response = Response("Success", status = 200)
+	
+	# And this is in case someone wants to wipe a Lesson out of existence
+	elif request.method == "DELETE":
+		data = request.form
+
+		# Checking the number value if it is correct
+		if "id" not in data.keys():
+			return e400()
+		if data["id"].isdigit() == False:
+			return e400()
+		
+		identifier = int(data["id"])
+		lesson_object = classes.Lesson.findById(school, identifier)
+
+		if lesson_object == None:
+			return e400()
+
+		lesson_object.removeLesson()
 
 		response = Response("Success", status = 200)
 	
