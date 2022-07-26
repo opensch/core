@@ -19,7 +19,7 @@ class School():
         school = School()
         school.name = json["name"]
         school.domain = json["domain"]
-        school.database = createMongo(school.domain, prefix = False)
+        school.database = createMongo(school.domain)
         school.email = json["email"]
 
         return school
