@@ -874,6 +874,92 @@ def priv_api_lesson_handler(request, school):
 	
 	return response
 
+def priv_api_timetable(request, school):
+	if 'Authorization' not in request.headers:
+		return e403()
+
+	token = request.headers['Authorization']
+	profile = findProfileByToken(token, school)
+	if profile == None:
+		return e403()
+
+	if 'role' not in profile.flags or profile.flags['role'] == 0:
+		return Response("Insufficient rights.", status = 403)
+
+	if request.args != ['day', 'classNumber', 'classLetter']:
+		return e400()
+	day = request.args.get("day")
+	classNumber = int(request.args.get("classNumber"))
+	classLetter = int(request.args.get("classLetter"))
+
+	try:
+		day = datetime.datetime.strptime(day, '%d.%m.%Y').weekday()
+	except Exception:
+		return e400()
+
+	if request.method == "GET":
+		timetable_db = school.database.timetable
+		replacements_db = school.database.replacements
+
+		timetable_request = {
+			"classNumber": classNumber,
+			"classLetter": classLetter,
+			"day": day
+		}
+
+		timetable = timetable_db.find_one(timetable_request)
+		if timetable: timetable = timetable ["lessons"]
+		else: return None
+
+		return Response(json.dumps(timetable), status = 200)
+	elif request.method == "POST":
+		timetable = classes.Timetable(school)
+		timetable.classNumber = classNumber
+		timetable.classLetter = classLetter
+		timetable.day = day
+
+		timetable_db = school.database.timetable
+		timetable_request = {
+			"classNumber": classNumber,
+			"classLetter": classLetter,
+			"day": day
+		}
+
+		if 'lessons' not in request.args.keys():
+			return e400()
+		lessons = json.loads(request.args['lessons'])
+
+		c = timetable_db.count_documents(timetable_request)
+		if c != 0:
+			if timetable.edit(lessons) == True:
+				return Response("ok", status = 200)
+		else:
+			if classes.Timetable.init(school, classNumber, classLetter, day, lessons) != None:
+				return Response("ok", status = 200)
+
+		return Response("Error happened", status = 500)
+	elif request.method == "DELETE":
+		timetable = classes.Timetable(school)
+		timetable.classNumber = classNumber
+		timetable.classLetter = classLetter
+		timetable.day = day		
+
+		timetable_db = school.database.timetable
+		timetable_request = {
+			"classNumber": classNumber,
+			"classLetter": classLetter,
+			"day": day
+		}
+
+		c = timetable_db.count_documents(timetable_request)
+		if c != 0:
+			if timetable.delete() == True:
+				return Response("ok", status = 200)
+			return Response("Error happened", status = 500)
+		else:
+			return Response("Timetable not found", error = 404)
+
+
 def createReplacement (request, school):
 	if 'Authorization' not in request.headers:
 		return e403()

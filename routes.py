@@ -1,7 +1,7 @@
 import functions
 
 routingMap = {
-	#"": {"method": ["GET"], "function": functions.mainPage},
+	"homePage": {"method": ["GET"], "function": functions.mainPage},
 	"oauth/auth": {"method": ["POST"], "function": functions.auth},
     "oauth/token": {"method": ["POST"], "function": functions.token_handler},
     "oauth/whoami": {"method": ["GET"], "function": functions.whoami},
@@ -19,10 +19,7 @@ routingMap = {
     "privAPI/getClassesTimetable": {"method": ["GET"], "function": functions.getClassTimetable},
     "privAPI/cabinet": {"method": ["GET", "POST", "DELETE"], "function": functions.priv_api_cabinet_handler},
     "privAPI/lesson": {"method": ["GET", "POST", "DELETE"], "function": functions.priv_api_lesson_handler},
-    # TODO: create timetable for day 
-    # TODO: edit timetable for day
-    # TODO: remove timetable for day
-    # (which I am NOT going to do, as I can't stand the spagetti shitcode that we have)
+    "privAPI/timetable": {"method": ["GET", "POST", "DELETE"], "function": functions.priv_api_timetable},
     "privAPI/createReplacement": {"method": ["POST"], "function": functions.createReplacement},
     "privAPI/editReplacement": {"method": ["POST"], "function": functions.editReplacement},
     "privAPI/deleteReplacement": {"method": ["GET"], "function": functions.deleteReplacement},
