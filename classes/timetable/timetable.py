@@ -77,7 +77,7 @@ class Timetable(object):
 		formatted_array = ["-"] * Timetable.MAX_LESSON_COUNT
 		
 		for item in range(len(new_lesson_array)):
-			formatted_array[item] = lesson_array[item]
+			formatted_array[item] = new_lesson_array[item]
 
 		query = {"_id": found_entry[0]["_id"]}
 		replacement = database_request

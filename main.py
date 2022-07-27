@@ -64,6 +64,11 @@ def addHeaders(response):
 
 def findPath(path):
 	path = path.split("/")
+
+	if len(path) == 0:
+		if 'homePage' in routingMap:
+			return routingMap["homePage"]
+
 	for i in routingMap.keys():
 		checkPath = re.sub('<.*?>', '', i)
 
