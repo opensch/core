@@ -67,11 +67,13 @@ def timetable(request, school, date):
 				lesson.cabinet = replacement.cabinet
 			if replacement.teacher:
 				lesson.teacher = replacement.teacher
-		
-			teacherUser = classes.User.with_id(school, int(lesson.teacher))
+
+		teacherUser = classes.User.with_id(school, int(lesson.teacher))
+		if teacherUser != None:
 			lesson.teacher = teacherUser.surname + " " + teacherUser.name + " " + teacherUser.middleName
 
-			cabinet = classes.Cabinet.with_number(school, int(lesson.cabinet))
+		cabinet = classes.Cabinet.with_number(school, int(lesson.cabinet))
+		if cabinet != None:
 			lesson.cabinet = cabinet
 
 		# This is a temporary measure to keep backwards compatibility
