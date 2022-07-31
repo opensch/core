@@ -24,9 +24,14 @@ def notifications_handler(request, school):
 		for key, value in args.items():
 			if key not in params:
 				return e400()
-			if not isinstance(value, bool):
+			if key != "homeworkTime":
+				compareTo = bool
+			else:
+				compareTo = int
+				
+			if not isinstance(value, compareTo):
 				return e400()
-			
+				
 			has_changes = True
 			profile.notifParams[key] = value
 		
