@@ -8,7 +8,7 @@ _database_connection = MongoClient(
 	password=Config().MONGO_PASS
 )
 
-def database(name, prefix = False):
+def database(name, prefix = True):
 	if prefix == False:
 		return _database_connection[name]
 	else:
