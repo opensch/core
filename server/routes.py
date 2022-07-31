@@ -12,11 +12,12 @@ def mainPage(*args):
 	return "Hello to openSchool!"
 
 routingMap = {
-	"homePage": {"method": ["GET"], "function": mainPage},
-	"oauth/auth": {"method": ["POST"], "function": authentication.auth},
+    "homePage": {"method": ["GET"], "function": mainPage},
+    "oauth/auth": {"method": ["POST"], "function": authentication.auth},
     "oauth/token": {"method": ["POST"], "function": authentication.token_handler},
     "oauth/whoami": {"method": ["GET"], "function": authentication.whoami},
     "user/notifications": {"method": ["GET", "POST"], "function": user.notifications_handler},
+    "user/addToken": {"method": ["POST"], "function" user.addToken},
     "user/passwd": {"method": ["POST"], "function": user.passwd},
     "homework/<date>/<lesson>": {"method": ['GET', 'POST', 'PUT', 'DELETE'], "function": homework.handler},
     "time": {"method": ["GET"], "function": times.getTime},
@@ -24,7 +25,7 @@ routingMap = {
     "timetable": {"method": ["GET"], "function": timetable.timetable_today},
     "timetable/<date>": {"method": ["GET"], "function": timetable.timetable_date},
     "lesson": {"method": ["GET"], "function": lesson.handler},
-	"replacement": {"method": ["GET"], "function": replacement.handler},
+    "replacement": {"method": ["GET"], "function": replacement.handler},
     "cabinet": {"method": ["GET"], "function": cabinet.handler},
     "cdn/<path:data>": {"method": ["GET"], "function": cdn.handler},
     "privAPI/getClasses": {"method": ["GET"], "function": timetable.get_classes},
