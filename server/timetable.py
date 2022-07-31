@@ -80,7 +80,7 @@ def timetable(request, school, date):
 		# constructed_lesson = lesson.to_old_dict()
 		# constructed_lesson["replacement"] = is_replaced
 		# constructed_lesson["originalLesson"] = original_lesson.to_old_dict()
-		timetable.append(constructed_lesson)
+		# timetable.append(constructed_lesson)
 	
 	response = Response(json.dumps(timetable), status = 200)
 	response.headers['Content-Type'] = 'application/json'
