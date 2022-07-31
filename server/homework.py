@@ -26,7 +26,7 @@ def handler(request, school, date, lesson):
 def get_homework(school, user_id, date, lesson):
 	if lesson == "all":
 		query = {
-			"user_id": profile.uid, 
+			"user_id": user_id, 
 			"target_date": date, 
 		}
 		results = classes.Homework.search(school, query)
