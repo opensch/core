@@ -36,9 +36,9 @@ class School():
 			return True
 
 	def with_name(name):
-		db = database(Config().MONGO_DB_PREFIX)
+		db = database(Config().MONGO_DB_PREFIX, prefix = False)
 		# check if school not in database
-		school = db.schools.find_one({"name": name})
+		school = db.schools.find_one({"domain": name})
 		if school is None:
 			return False
 		else:
