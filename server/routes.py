@@ -17,7 +17,7 @@ routingMap = {
     "oauth/token": {"method": ["POST"], "function": authentication.token_handler},
     "oauth/whoami": {"method": ["GET"], "function": authentication.whoami},
     "user/notifications": {"method": ["GET", "POST"], "function": user.notifications_handler},
-    "user/addToken": {"method": ["POST"], "function" user.addToken},
+    "user/addToken": {"method": ["POST"], "function": user.addToken},
     "user/passwd": {"method": ["POST"], "function": user.passwd},
     "homework/<date>/<lesson>": {"method": ['GET', 'POST', 'PUT', 'DELETE'], "function": homework.handler},
     "time": {"method": ["GET"], "function": times.getTime},
