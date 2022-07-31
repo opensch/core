@@ -1,12 +1,11 @@
-from flask import Flask, Response, request
-from routes import routingMap
-from classes import School
-from config import Config
-import tldextract
-import os, re
-import json
+import os, re, json, tldextract
 
-from functions import e400, e404
+from flask import Flask, request, Response 
+
+from config import Config
+from classes import School
+from server.routes import routingMap
+from server.helpers import e400, e404
 
 if os.getenv("KUBERNETES") == "1":
 	import kubernetesConfig
@@ -19,17 +18,6 @@ def startup ():
 	the environment before starting up the Flask application, like folder
 	creation, configuration file checking, etc.
 	"""
-	  
-	# Creating folders to store OAuth codes
-	if os.path.isdir("codes") != True:
-		os.mkdir("codes")
-	if os.path.isdir("tokens") != True:
-		os.mkdir("tokens")
-	if os.path.isdir("tokens/access") != True:
-		os.mkdir("tokens/access")
-	if os.path.isdir("tokens/refresh") != True:
-		os.mkdir("tokens/refresh")
-		
 	# Checking the configuration file for the current mode
 	mode = Config().mode
 	key = Config().clientSecret 
@@ -62,6 +50,7 @@ def addHeaders(response):
 
 	return response
 
+
 def findPath(path):
 	path = path.split("/")
 
@@ -89,6 +78,7 @@ def findPath(path):
 				return routingMap[i], i
 
 	return None, None
+
 
 def parseArgs(path, routePath):
 	path = path.split("/")
@@ -119,7 +109,6 @@ def route(path):
 	if path == "favicon.ico":
 		return "", 404
 
-
 	route, routePath = findPath(path)
 
 	if route == None:
@@ -136,7 +125,7 @@ def route(path):
 	if schoolName == "":
 		return "No school specified", 400
 	else:
-		school = School.findSchoolByDomain(schoolName)
+		school = School.with_domain(schoolName)
 		if school == False:
 			return "School not found", 404
 
@@ -144,7 +133,7 @@ def route(path):
 		if request.method in route['method']:
 			response = route['function'](request, school, *parseArgs(path, routePath))
 		else:
-			response = e400()
+			response = e405()
 
 	return addHeaders(response)
 

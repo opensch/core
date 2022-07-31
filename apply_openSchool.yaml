@@ -34,8 +34,6 @@ spec:
               value: testkey
             - name: clientSecret
               value: verysecurekey
-            - name: MAX_LESSON_COUNT
-              value: This is an important parameter. It controls the maximum lesson count. Change this parameter wisely as it can lead to crashes later.
             - name: SSL
               value: '1'
             - name: SSL_CERT
