@@ -68,6 +68,12 @@ def timetable(request, school, date):
 			if replacement.teacher:
 				lesson.teacher = replacement.teacher
 		
+			teacherUser = classes.User.with_id(school, int(lesson.teacher))
+			lesson.teacher = teacherUser.surname + " " + teacherUser.name + " " + teacherUser.middleName
+
+			cabinet = classes.Cabinet.with_number(school, int(lesson.cabinet))
+			lesson.cabinet = cabinet
+
 		# This is a temporary measure to keep backwards compatibility
 		constructed_lesson = lesson.to_old_dict()
 		constructed_lesson["replacement"] = is_replaced
