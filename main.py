@@ -133,7 +133,7 @@ def route(path):
 		if request.method in route['method']:
 			response = route['function'](request, school, *parseArgs(path, routePath))
 		else:
-			response = e405()
+			response = e404()
 
 	return addHeaders(response)
 
