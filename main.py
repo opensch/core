@@ -5,7 +5,7 @@ from flask import Flask, request, Response
 from config import Config
 from classes import School
 from server.routes import routingMap
-from server.helpers import e400, e404, e405
+from server.helpers import e400, e404
 
 if os.getenv("KUBERNETES") == "1":
 	import kubernetesConfig
