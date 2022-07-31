@@ -1,68 +1,48 @@
-import json
-
 class Cabinet(object):
-	"""docstring for Cabinet"""
-	def __init__(self, school, dataDict = None):
-		super(Cabinet, self).__init__()
-		if dataDict == None:
+	def __init__(self, school, dictionary_object = None):
+		if dictionary_object is None:
 			self.floor = -1
 			self.nearby = []
 			self.number = -1
 			self.photo = ""
 		else:
-			if "_id" in dataDict.keys():
-				del dataDict["_id"]
-			self.__dict__ = dataDict
+			if "_id" in dictionary_object.keys():
+				del dictionary_object["_id"]
+			self.__dict__ = dictionary_object
 
-		self.db = school.database.cabinets
+		self.school = school
 
+	def to_dict(self):
+		dictionary = self.__dict__.copy()
+		del dictionary["school"]
 
-	def toJSON(self):
-		dict =  self.__dict__
-		del dict['db']
+		return dictionary
 
-		return dict
+	def save_to_db(self):
+		if self.school.database.cabinets.find_one(self.to_dict()):
+			return None
+		return self.school.database.cabinets.insert_one(self.to_dict())
 
-	def createCabinet(school, floor, nearby, number, photo = ""):
-		tempCabinet = Cabinet(school)
-		tempCabinet.floor = floor
-		tempCabinet.nearby = nearby
-		tempCabinet.number = number
+	def delete(self):
+		return self.school.database.cabinets.delete_one(self.to_dict())
 
-		if photo != "":
-			tempCabinet.photo = photo
+	def search(school, query):
+		objects = []
+		results = list(school.database.cabinets.find(query))
 
-		db = school.database.cabinets
+		if len(results) == 0:
+			return None
 
-		db.insert_one(tempCabinet.toJSON())
+		for item in results:
+			objects.append(Cabinet(school, item))
 
-	def find(school, query, _filter='_id'):
-			db = school.database.cabinets
+		return objects
 
-			if _filter == "floor":
-				c = db.find({"floor": query})
+	def with_floor(school, floor):
+		return Cabinet.search(school, {"floor": floor})
 
-				temp = []
-				for i in c:
-					temp.append(Cabinet(school, i))
-
-				return temp
-
-			if _filter == "number":
-				m = db.count_documents({"number": int(query)})
-				c = db.find({"number": int(query)})
-
-				if m != 1:
-					return None
-
-				return Cabinet(school, c[0])
-
-	def findByFloor(school, floor):
-		return Cabinet.find(school, floor, _filter="floor")
-
-	def findByNumber(school, number):
-		return Cabinet.find(school, number, _filter="number")
-
-	def removeCabinet(self):
-		number = self.number
-		self.db.delete_one({"number" : number})
+	def with_number(school, number):
+		if result := Cabinet.search(school, {"number": number}):
+			return result[0]
+		else:
+			return None

@@ -1,116 +1,85 @@
-from .cabinet import Cabinet
-from pymongo import ASCENDING
-import json
-
-class Lesson(object):
-	"""docstring for Lesson"""
-	def __init__(self, school, dataDict = None, rec = False):
-		super(Lesson, self).__init__()
-		self.rec = rec
-		if dataDict == None:
-			if rec == False:
-				self.db = school.database.lessons
-			self.replacement = False
-			if rec == False:
-				self.originalLesson = Lesson( school, rec = True ) # If replacement is true
-			self.id = -1
-			self.title = ""
-			self.teacher = ""
+class Lesson():
+	def __init__(self, school, dictionary_object = None):
+		if dictionary_object is None:
+			self.id = None
+			self.subject = None
+			self.day = None
+			self.position = None
+			self.unique = False
 			self.cabinet = None
-			self.classNumber = -1
-			self.classLetter = ""
+			self.class_number = None
+			self.class_letter = None
+			self.teacher = None
 		else:
-			if "_id" in dataDict.keys():
-				del dataDict["_id"]
-			if "originalLesson" not in dataDict.keys():
-				dataDict["originalLesson"] = Lesson(school)
+			self.__dict__ = dictionary_object
+			if "_id" in self.__dict__.keys():
+				del self.__dict__["_id"]
 
-			self.__dict__ = dataDict
-			self.db = school.database.lessons
+		self.school = school
 
-	def toJSON(self):
-		dict =  self.__dict__.copy()
-		
-		if "originalLesson" in dict.keys():
-			dict["originalLesson"] = dict["originalLesson"].toJSON()
-		if "db" in dict.keys():
-			del dict['db']
+	def to_dict(self):
+		dictionary = self.__dict__.copy()
+		del dictionary["school"]
+		return dictionary
 
-		return dict
-
-	def createLesson(school, title, teacher, cabinet, classNumber, classLetter):
-		tempLesson = {
-			"title": title,
-			"teacher": teacher,
-			"cabinet": cabinet,
-			"classNumber": classNumber,
-			"classLetter": classLetter,
+	def to_old_dict(self):
+		# This is used to provide backwards compatibility with the previous
+		# versions still in use.
+		return {
+			"id": self.id,
+			"title": self.subject,
+			"teacher": self.teacher,
+			"cabinet": self.cabinet,
+			"classNumber": self.class_number,
+			"classLetter": self.class_letter 
 		}
 
-		tempLesson = Lesson(school, tempLesson)
+	def save_to_db(self):
+		database = self.school.database.lessons
+		dictionary = self.to_dict()
+		if database.count_documents(dictionary) > 0:
+			return False
 
-		c = tempLesson.db.find().sort( [ ("id", ASCENDING) ] )
-		lID = 0
-		for i in c:
-			try:
-				if i['id'] > lID:
-					lID = i['id']
-			except Exception:
-				pass
-		lID = lID + 1
+		# Getting an entry with the largest identifier
+		dictionary["id"] = database.count_documents({})
 
-		tempLesson.id = lID
-		
-		print(tempLesson.toJSON()) 
-		tempLesson.db.insert_one(tempLesson.toJSON())
+		# Saving the new entry into the database
+		return database.insert_one(dictionary)
 
-	def find(school, query, _filter="title"):
-		db = school.database.lessons
+	def save_changes(self):
+		database = self.school.database.lessons
+		return database.replace_one({"id": self.id}, self.to_dict())
 
-		if _filter == "id":
-			m = db.count_documents({"id": int(query)})
-			c = db.find({"id": int(query)})
+	def delete(self):
+		return self.school.database.lessons.delete_one({"id": self.id})
 
-			if m != 1:
-				return None
+	def search(school, query):
+		found_objects = []
+		search_results = school.database.lessons.find(query)
 
-			return Lesson(school, c[0])
+		for result in search_results:
+			found_objects.append(Lesson(school, result))
 
-		if _filter == "title":
-			c = db.find({"title": query})
+		return found_objects
 
-			temp = []
-			for i in c:
-				temp.append(Lesson(school, i))
+	def with_id(school, id):
+		if result := Lesson.search(school, {"id": id}):
+			return result[0]
+		else:
+			return None
 
-			return temp
-		if _filter =="cabinet":
-			c = db.find({"cabinet": query.toJSON()})
+	def with_subject(school, subject_title):
+		return Lesson.search(school, {"subject": subject_title})
 
-			temp = []
-			for i in c:
-				temp.append(Lesson(school, i))
-			return temp
-		if _filter == "teacher":
-			c = db.find({"teacher": query})
+	def with_day(school, day):
+		return Lesson.search(school, {"day": day})
 
-			temp = []
-			for i in c:
-				temp.append(Lesson(school, i))
+	def with_cabinet(school, cabinet_number):
+		return Lesson.search(school, {"cabinet": cabinet_number})
 
-			return temp
+	def with_class(school, number, letter):
+		query = {"class_number": number, "class_letter": letter}
+		return Lesson.search(school, query)
 
-	def findById(school, _id):
-		return Lesson.find(school, _id, _filter="id")
-
-	def findByTitle(school, title):
-		return Lesson.find(school, title, _filter="title")
-
-	def findByCabinet(school, cabinet):
-		return Lesson.find(school, cabinet, _filter="cabinet")
-
-	def findByCabinet(school, teacher):
-		return Lesson.find(school, teacher, _filter="teacher")
-
-	def removeLesson(self):
-		self.db.delete_one({"id" : self.id})
+	def findByTeacher(school, teacher_id):
+		return Lesson.search(school, {"teacher": teacher_id})

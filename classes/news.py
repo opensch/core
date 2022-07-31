@@ -1,4 +1,3 @@
-from .database import createMongo
 import os
 import json
 import hashlib
@@ -27,7 +26,7 @@ class News ():
 		self.important = False
 
 
-	def toJSON (self):
+	def to_dict(self):
 		jsonTemp = {
 			"title": self.title,
 			"picture": self.picture,
@@ -37,7 +36,7 @@ class News ():
 		return jsonTemp
 		
 	
-	def fromJSON (data):
+	def from_dict(data):
 		tempNews = News()
 
 		tempNews.title = data['title']
@@ -47,7 +46,7 @@ class News ():
 		return tempNews
 
 	
-	def create (title, markdownFile, important = False):
+	def create(title, markdownFile, important = False):
 		# Reading he news list file
 		
 		with open ("cdn/news.json", "r") as news_file:
@@ -85,16 +84,16 @@ class News ():
 			contents = json.dumps(news_list)
 			news_file.write(contents)
 
-		return News.fromJSON(new_entry)
+		return News.from_dict(new_entry)
 
 
-	def edit (self, new_markdown):
+	def edit(self, new_markdown):
 		# Firstly, let's check if the news is still in place
 
 		with open ("cdn/news.json", "r") as news_file:
 			news_entries = json.loads(news_file.read())
 
-		if self.toJSON() not in news_entries:
+		if self.to_dict() not in news_entries:
 			return None
 		
 		# If it's still available, modify the contents
@@ -105,7 +104,7 @@ class News ():
 			file.write(contents)
 
 
-	def delete (self):
+	def delete(self):
 		# Deleting the file contating the content
 		
 		os.remove("cdn/" + self.content)
@@ -115,25 +114,25 @@ class News ():
 		with open ("cdn/news.json", "r") as news_file:
 			news_list = json.loads(news_file.read())
 
-		news_list.remove(self.toJSON())
+		news_list.remove(self.to_dict())
 
 		with open ("cdn/news.json", "w") as news_file:
 			contents = json.dumps(news_list)
 			news_file.write(contents)
 
 
-	def search (title):
+	def search(title):
 		with open ("cdn/news.json", "r") as news_file:
 			news_list = json.loads(news_file.read())
 
 		for news_entry in news_list:
 			if news_entry ["title"] == title:
-				return News.fromJSON(news_entry)
+				return News.from_dict(news_entry)
 
 		return None
 
 
-	def get_content (self):
+	def get_content(self):
 		with open ("cdn/" + self.content) as file:
 			contents = json.loads(file.read())
 			

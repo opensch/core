@@ -3,6 +3,7 @@ __pycache__/
 classes/__pycache__/
 classes/timetable/__pycache__/
 classes/surveys/__pycache__/
+server/__pycache__
 
 # Codes and tokens
 codes/
