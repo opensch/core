@@ -2,8 +2,8 @@ import os
 
 from .replacement import *
 from .cabinet import *
-from .homework import *
 from .lesson import *
+from .homework import *
 from .news import *
 from .user import *
 from .school import *
