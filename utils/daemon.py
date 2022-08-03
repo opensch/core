@@ -7,32 +7,39 @@ import time
 import requests
 from tqdm import tqdm
 
+
 def getTime():
     n = {}
     with open("time.json") as f:
         n = json.loads(f.read())
     return n
 
+
 def fix(time, current):
-    time = time.replace(day = current.day, month = current.month, year = current.year)
+    time = time.replace(day=current.day, month=current.month, year=current.year)
     return time
+
 
 wasToday = {}
 lastReset = 0
 
+
 def sendFirebase(token, title, content):
-	data = {
-		"to": token,
-		"notification": {
-			"title": title,
-			"body": content
-		}
-	}
-	requests.post("https://fcm.googleapis.com/fcm/send", headers = {"Content-Type": "application/json", "Authorization": "key="+classes.Config().googleFCM}, data = json.dumps(data))
+    data = {"to": token, "notification": {"title": title, "body": content}}
+    requests.post(
+        "https://fcm.googleapis.com/fcm/send",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": "key=" + classes.Config().googleFCM,
+        },
+        data=json.dumps(data),
+    )
+
 
 def sendToUser(user, title, content):
     for x in user.tokens:
         sendFirebase(x, title, content)
+
 
 def findNextLesson(timetable, _class):
     curDate = datetime.now()
@@ -43,23 +50,25 @@ def findNextLesson(timetable, _class):
     for x in range(len(timetable.lessons)):
         startTime = times[_class][x].split("-")[0]
         startTime = fix(datetime.strptime(startTime, "%H:%M"), curDate)
-        
+
         if startTime >= curDate and _next == None:
             if timetable.lessons[x] != "-":
                 _next = timetable.lessons[x]
 
     return _next
 
+
 def getTimetableNotification(_class):
     times = getTime()
     nonDefault = []
 
     for x in times.keys():
-        if x != "default": nonDefault.append(x)
+        if x != "default":
+            nonDefault.append(x)
 
     allUsers = classes.User.find("", "all")
     for i in tqdm(allUsers):
-        if i.notifParams['10min'] == True and len(i.tokens) != 0:
+        if i.notifParams["10min"] == True and len(i.tokens) != 0:
             userClass = "default"
             if str(i.classNumber) in nonDefault:
                 userClass = str(i.classNumber)
@@ -70,9 +79,10 @@ def getTimetableNotification(_class):
 
                 if lesson != None:
                     _title = "🏫 Скоро урок"
-                    _content = "Через 10 минут у вас начинается "+lesson.title
+                    _content = "Через 10 минут у вас начинается " + lesson.title
 
                     sendToUser(i, _title, _content)
+
 
 def checkTimes(times):
     curDate = datetime.now()
@@ -86,18 +96,19 @@ def checkTimes(times):
                 continue
             startTime = x.split("-")[0]
             startTime = fix(datetime.strptime(startTime, "%H:%M"), curDate)
-            if(startTime >= curDate):
+            if startTime >= curDate:
                 diff = (startTime - curDate).total_seconds()
                 if diff <= 600:
-                    print("Send 10minute push to "+i)
+                    print("Send 10minute push to " + i)
                     getTimetableNotification(i)
                     wasToday[i].append(x)
                     print("Worker end")
 
+
 times = getTime()
 
 while True:
-    checkTimes(times) # Send push notification with lesson start text
+    checkTimes(times)  # Send push notification with lesson start text
 
     ####### ######## #####
     # Reset watchdog lock#

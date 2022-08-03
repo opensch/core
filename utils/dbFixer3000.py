@@ -1,4 +1,5 @@
 import sys
+
 sys.path.append("..")
 
 import classes
@@ -10,7 +11,7 @@ db = client.users
 n = db.find()
 
 for i in n:
-	profile = classes.User.fromJSON(i)
+    profile = classes.User.fromJSON(i)
 
-	print(profile.uid)
-	profile.editUser(profile)
+    print(profile.uid)
+    profile.editUser(profile)
