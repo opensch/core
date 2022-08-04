@@ -15,7 +15,7 @@ To setup:
   
   3. To run a container, run: `docker run -v <PATH TO YOUR CONFIG FILE>:/app/config.py -p 80:80 opensch/core`
 
-## Kubernetes
+## Kubernetes (not ready yet)
 In case you need to run Core on a big scale, we have setup a Kubernetes configuration file for fast deployments
 
 To setup:
