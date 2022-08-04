@@ -1,6 +1,6 @@
 openSchool Core is the reference implementation of the openSchool server, written in Python. It's meant for running on school server infrastructure to provide openSchool functionality to the students / workers of the faculty. It is designed for running from something small like a Raspberry Pi to more complex structures, security and privacy.
 
-:warning: **A word of causion!** This software is in its early stages of development and in no way considered production-ready. Expect a lot of bugs and quite poor design decisions in place that will (hopefully) get cleared up over time. There will be pull requests that **wlll** break current functionality.
+:hourglass: **We're going to release the first build of openSchool within 1 month!** Sadly, we don't offer any documentation now, so if you want to test it, you should understand how it works by yourself. Of course, we'll publish documentation with the first release
 
 # Installation
 There are several ways to get your hands on Core:
