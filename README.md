@@ -1,6 +1,6 @@
 <p align="center">
-    <img src="https://openschool.cc/ghLogo/dark.png#gh-light-mode-only" alt="openSchool Logo" height="200px" width="auto" />
-    <img src="https://openschool.cc/ghLogo/light.png#gh-dark-mode-only" alt="openSchool Logo" height="200px" width="auto" />
+    <img src="https://github.com/opensch/assets/blob/main/light.png?raw=true#gh-light-mode-only" alt="openSchool Logo" height="200px" width="auto" />
+    <img src="https://github.com/opensch/assets/blob/main/dark.png?raw=true#gh-dark-mode-only" alt="openSchool Logo" height="200px" width="auto" />
 </p>
 
 <p align="center">
