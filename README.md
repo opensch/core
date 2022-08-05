@@ -1,3 +1,16 @@
+<p align="center">
+    <img src="https://openschool.cc/ghLogo/dark.png#gh-light-mode-only" alt="openSchool Logo" height="200px" width="auto" />
+    <img src="https://openschool.cc/ghLogo/light.png#gh-dark-mode-only" alt="openSchool Logo" height="200px" width="auto" />
+</p>
+
+<p align="center">
+  <img src="https://badgen.net/github/stars/opensch/core" />
+  <img src="https://badgen.net/github/forks/opensch/core" />
+  <img src="https://badgen.net/github/open-issues/opensch/core" />
+  <img src="https://badgen.net/github/last-commit/opensch/core" />
+  <img src="https://badgen.net/github/contributors/opensch/core" />
+</p>
+
 openSchool Core is the reference implementation of the openSchool server, written in Python. It's meant for running on school server infrastructure to provide openSchool functionality to the students / workers of the faculty. It is designed for running from something small like a Raspberry Pi to more complex structures, security and privacy.
 
 :hourglass: **We're going to release the first build of openSchool within 1 month!** Sadly, we don't offer any documentation now, so if you want to test it, you should understand how it works by yourself. Of course, we'll publish documentation with the first release
