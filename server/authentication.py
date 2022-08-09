@@ -8,7 +8,11 @@ from flask import Response
 
 import classes
 from .helpers import *
-from config import Config
+
+try:
+    from config import Config
+except ModuleNotFoundError:
+    from classes.simpleConfig import Config
 
 
 def get_profile(school, request):

@@ -1,12 +1,19 @@
 from pymongo import MongoClient, ASCENDING
 from .configReader import Config
 
-_database_connection = MongoClient(
-    Config().MONGO_HOST,
-    Config().MONGO_PORT,
-    username=Config().MONGO_USER,
-    password=Config().MONGO_PASS,
-)
+
+try:
+    if Config().setupConfig == True:
+        pass
+    else:
+        raise Exception("")
+except Exception:
+    _database_connection = MongoClient(
+        Config().MONGO_HOST,
+        Config().MONGO_PORT,
+        username=Config().MONGO_USER,
+        password=Config().MONGO_PASS,
+    )
 
 
 def database(name, prefix=True):
