@@ -7,10 +7,18 @@ from . import replacement
 from . import times
 from . import timetable
 from . import user
+from .setup import setupDummy
 
 
 def mainPage(*args):
     return "Hello to openSchool!"
+
+"""
+    TODO:
+        - Add a method to mark lesson as unique
+        - Add a method to manage schools
+        - Add a method to manage users
+"""
 
 
 routingMap = {
@@ -57,4 +65,5 @@ routingMap = {
         "method": ["PUT", "POST", "DELETE"],
         "function": cdn.private_handler,
     },
+    "setup": {"method": ["GET", "POST"], "function": setupDummy},
 }

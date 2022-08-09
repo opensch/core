@@ -1,5 +1,9 @@
+from ast import Mod
 import sys
 
 sys.path.append("..")
 
-from config import Config
+try:
+    from config import Config
+except ModuleNotFoundError:
+    from classes.simpleConfig import Config

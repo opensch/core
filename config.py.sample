@@ -13,6 +13,9 @@ class Config():
 
 		'''Server section'''
 
+		self.adminUser = "admin"
+		self.adminPass = "admin"
+
 		# development: ignore all security functions, use built-in http server in flask. production: all security, use external http server
 		self.mode = "development"
 
