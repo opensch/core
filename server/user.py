@@ -72,7 +72,9 @@ def pushSignature(request, school):
         testSignature = signature(args['token'], login, args['title'], args['body'], time)
 
         if testSignature == args['signature']:
-            return login
+            return Response(login, status=200)
+    
+    return Response("None", status=200)
 
 
 def passwd(request, school):
