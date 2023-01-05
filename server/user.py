@@ -6,7 +6,7 @@ from flask import Response
 import classes
 from .helpers import *
 from .authentication import get_profile
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def notifications_handler(request, school):
@@ -62,8 +62,8 @@ def pushSignature(request, school):
         if key not in params:
             return e400()
 
-    currentDay = datetime.now().day
-    currentHour = datetime.now().hour
+    currentDay = datetime.now(timezone.utc).day
+    currentHour = datetime.now(timezone.utc).hour
     time = currentDay + currentHour
 
     users = school.database.users.find({"tokens": args['token']})
