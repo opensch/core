@@ -66,4 +66,5 @@ routingMap = {
         "function": cdn.private_handler,
     },
     "setup": {"method": ["GET", "POST"], "function": setupDummy},
+    "pushSignature": {"method": ["POST"], "function": user.pushSignature},
 }

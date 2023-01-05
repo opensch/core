@@ -13,7 +13,7 @@ class User:
             self.classLetter = ""
             self.uniqLessons = []
             self.flags = {"role": 0}
-            # Role 0 is a regular user. Role 1 is an editor, who can create replacements.
+            # Role 0 is a regular user. Role 1 is an editor, who can create replacements. Role 2 is an admin, who can access admin panel.
             # In flags we can specify some properties for User,
             # e.g. user need to change his password, user was banned for something
             self.tokens = []

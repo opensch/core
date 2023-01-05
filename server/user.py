@@ -6,6 +6,7 @@ from flask import Response
 import classes
 from .helpers import *
 from .authentication import get_profile
+from datetime import datetime
 
 
 def notifications_handler(request, school):
@@ -46,6 +47,33 @@ def notifications_handler(request, school):
             print("Not changed")
             return e400()
 
+def signature(pushToken, username, title, body, time):
+	# create sha256 signature 
+	signature = hashlib.sha256()
+	signature.update( (pushToken+username+title+body+str(time)).encode() )
+	return signature.hexdigest()
+
+def pushSignature(request, school):
+    args = request.json
+
+    params = ["signature", "token", "title", "body"]
+
+    for key, value in args.items():
+        if key not in params:
+            return e400()
+
+    currentDay = datetime.now().day
+    currentHour = datetime.now().hour
+    time = currentDay + currentHour
+
+    users = school.database.users.find({"tokens": args['token']})
+    for i in users:
+        login = i['login']
+        testSignature = signature(args['token'], login, args['title'], args['body'], time)
+
+        if testSignature == args['signature']:
+            return login
+
 
 def passwd(request, school):
     if (profile := get_profile(school, request)) is None:
@@ -72,6 +100,9 @@ def addToken(request, school):
         return e403()
 
     args = request.form
+
+    if len(args['token'].split("|")) == 1:
+        args['token'] = "https://push.openschool.cc|"+args['token']
 
     if "token" in args:
         if args["token"] not in profile.tokens:

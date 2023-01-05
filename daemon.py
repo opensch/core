@@ -24,21 +24,11 @@ wasToday = {}
 lastReset = 0
 
 
-def sendFirebase(token, title, content):
-    data = {"to": token, "notification": {"title": title, "body": content}}
-    requests.post(
-        "https://fcm.googleapis.com/fcm/send",
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": "key=" + classes.Config().googleFCM,
-        },
-        data=json.dumps(data),
-    )
-
 
 def sendToUser(user, title, content):
     for x in user.tokens:
-        sendFirebase(x, title, content)
+        pass
+        #sendFirebase(x, title, content)
 
 
 def findNextLesson(timetable, _class):
