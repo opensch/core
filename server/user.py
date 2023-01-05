@@ -104,11 +104,13 @@ def addToken(request, school):
     args = request.form
 
     if len(args['token'].split("|")) == 1:
-        args['token'] = "https://push.openschool.cc|"+args['token']
+        token = "https://push.openschool.cc|"+args['token']
+    else:
+        token = args['token']
 
     if "token" in args:
-        if args["token"] not in profile.tokens:
-            profile.tokens.append(args["token"])
+        if token not in profile.tokens:
+            profile.tokens.append(token)
             profile.save_changes()
 
         response = Response(json.dumps({"status": "ok"}), status=200)
